@@ -13,34 +13,27 @@ Analysis Geo 880**
 ## Abstract 
 <!-- (50-60 words) -->
 
+Our project aims at defining, describing and identifying movement patterns for different travel modes. Movement data has been collected over a period of approximately two months and a various range of travel modes movements have been recorded: train, tram, bus, car, walking, cycling, running, kick scooter, ski, ski-lift and boat.  
+The movement pattern for each travel mode will first be characterized.  
+By looking at the metrics: speed (acceleration, deceleration), sinuosity (angle, direction).  
+And a specific environment bound to the studied travel mode: tracks, roads, slope.  
+In a second step, the suitability of these characteristics for identifying travel modes will be studied. For example are characteristics of trams different enough of bus.
+Based on the answer, a model will then attempted to be built, and applied to the collected data to detect the travel modes.  The results of the identification will finally be evaluated.
+
 Potential ideas:
 
 - identify different patterns for week days and week-ends
 - identify pattern for leisure time
+- Preference based on weather, slope, availibility, distance, objective mind
+
 
 1. Movement pattern for each travel mode: summary characteristics from our data and literature
-- Travel mode to explore : train, tram, bus, car, walking, cycling, running, kick scooter, ski, ski-lift
-
 - Pattern specific to each travel mode: trams and trains follow tracks, ski only happen in mountain and has specific slope.
-- metrics: speed (acceleration, deceleration), sinuosity (angle, direction)
-
-- data to use: 
-- trajectories timestampt
-- tram tracks
-- roads
-- slope
-
-3. Can we use these characteristics to identify travel mode?
-
-
-
-Preference based on weather, slope, availibility, distance, objective mind
-
 
 
 
 ## Research Questions
-1. Do the characteristics of movement trajectories differ bettween different travel modes?
+1. Do the characteristics of movement trajectories differ beetween different travel modes?
 2. Could the characteristics be used to identify travel mode?
 3. How to identify different travel modes with movement trajectories? Could a identification model be built?
 4. How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
@@ -59,7 +52,7 @@ Preference based on weather, slope, availibility, distance, objective mind
 #### Data used 
 1. Movement data collected with POSMO (mobile tracking app) and GPS trackers (external device).
 2. (Option)Transport network(railway/street network, cycling/walking/skiing paths), tram/bus/train/boats stops and stations, and tram/bus/train/boats time schedules.
-3. (Option) Environment and obstacles, such as lake, buildings, rivers.
+3. (Option) Environment and obstacles, such as lake, buildings, rivers, and terrain elevation.
 #### Data source
 1. Volunteered movement data of two college students
 2. Open data from SwissTopo
@@ -83,6 +76,7 @@ What additional spatial analysis methods:  classification algorithms for RQ 3.
 
 ## R concepts
 <!-- Which R concepts, functions, packages will you mainly use. What additional spatial analysis methods will you be using? -->
+We will use tidyverse for data handling, 
 
 ## Risk analysis
 <!-- What could be the biggest challenges/problems you might face? What is your plan B? -->
