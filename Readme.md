@@ -5,13 +5,39 @@ Analysis Geo 880**
 
 | Semester:      | FS23                                     |
 |:---------------|:---------------------------------------- |
-| **Data:**      | What type of data are you focussing on?  |
-| **Title:**     | The title of your project                |
-| **Student 1:** | Name of Student 1                        |
-| **Student 2:** | Name of Student 2                        |
+| **Data:**      | Movement data of two college students    |
+| **Title:**     | Understanding movement patterns of different travel modes    |
+| **Student 1:** | Yelu He                                  |
+| **Student 2:** | Martine Besse                            |
 
 ## Abstract 
 <!-- (50-60 words) -->
+
+Potential ideas:
+
+- identify different patterns for week days and week-ends
+- identify pattern for leisure time
+
+1. Movement pattern for each travel mode: summary characteristics from our data and literature
+- Travel mode to explore : train, tram, bus, car, walking, cycling, running, kick scooter, ski, ski-lift
+
+- Pattern specific to each travel mode: trams and trains follow tracks, ski only happen in mountain and has specific slope.
+- metrics: speed (acceleration, deceleration), sinuosity (angle, direction)
+
+- data to use: 
+- trajectories timestampt
+- tram tracks
+- roads
+- slope
+
+3. Can we use these characteristics to identify travel mode?
+
+
+
+Preference based on weather, slope, availibility, distance, objective mind
+
+
+
 
 ## Research Questions
 <!-- (50-60 words) -->
