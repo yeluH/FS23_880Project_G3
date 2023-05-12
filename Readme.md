@@ -40,16 +40,37 @@ Preference based on weather, slope, availibility, distance, objective mind
 
 
 ## Research Questions
-<!-- (50-60 words) -->
+1. Do the characteristics of movement trajectories differ bettween different travel modes?
+2. Could the characteristics be used to identify travel mode?
+3. How to identify different travel modes with movement trajectories? Could a identification model be built?
+4. How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
+
+
+
 
 ## Results / products
-<!-- What do you expect, anticipate? -->
+1. Characteristics summary of movement trajectories of different travel modes.
+2. An identification model for travel mode based on movement tractory data.
+3. Assessment of the identification model.
+
 
 ## Data
 <!-- What data will you use? Will you require additional context data? Where do you get this data from? Do you already have all the data? -->
+#### Data used 
+1. Movement data collected with POSMO (mobile tracking app) and GPS trackers (external device).
+2. (Option)Transport network(railway/street network, cycling/walking/skiing paths), tram/bus/train stops and stations, and tram/bus/train time schedules.
+#### Data source
+1. Volunteered movement data of two college students
+2. Open data from SwissTopo
+
 
 ## Analytical concepts
 <!-- Which analytical concepts will you use? What conceptual movement spaces and respective modelling approaches of trajectories will you be using? What additional spatial analysis methods will you be using? -->
+#### Analytical concepts
+
+#### Conceptual movement spaces and respective modelling approaches
+
+
 
 ## R concepts
 <!-- Which R concepts, functions, packages will you mainly use. What additional spatial analysis methods will you be using? -->
