@@ -14,9 +14,7 @@ Analysis Geo 880**
 <!-- (50-60 words) -->
 
 Our project aims at defining, describing and identifying movement patterns for different travel modes. Movement data has been collected over a period of approximately two months and a various range of travel modes movements have been recorded: train, tram, bus, car, walking, cycling, running, kick scooter, ski, ski-lift and boat.  
-The movement pattern for each travel mode will first be characterized.  
-By looking at the metrics: speed (acceleration, deceleration), sinuosity (angle, direction).  
-And a specific environment bound to the studied travel mode: tracks, roads, slope.  
+The movement pattern for each travel mode will first be characterized bBy looking at the metrics: speed (acceleration, deceleration), sinuosity (angle, direction), and the specific environment bound to the studied travel mode: tracks, roads, slope.  
 In a second step, the suitability of these characteristics for identifying travel modes will be studied. For example are characteristics of trams different enough of bus.
 Based on the answer, a model will then attempted to be built, and applied to the collected data to detect the travel modes.  The results of the identification will finally be evaluated.
 
@@ -84,4 +82,4 @@ For certain travel modes, we might not have enough data to do an accurate analys
 
 ## Questions? 
 <!-- Which questions would you like to discuss at the coaching session? -->
-Do these goals seem feasible based on the knowledge acquired in class, and in timeframe of the remaining weeks of work?
+- Do these goals seem feasible based on the knowledge acquired in class, and in timeframe of the remaining weeks of work?
