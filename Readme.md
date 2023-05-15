@@ -46,8 +46,6 @@ Based on the answer, a model will then attempted to be built, and applied to the
 
 ## Analytical concepts
 <!-- Which analytical concepts will you use? What conceptual movement spaces and respective modelling approaches of trajectories will you be using? What additional spatial analysis methods will you be using? -->
-#### Analytical concepts
-...
 
 #### Conceptual movement spaces and respective modelling approaches
 The data collected is spatio-temporal. Depending of the travel mode studied, the conceptual movement space will be different.
@@ -56,9 +54,7 @@ But others could be represented as continuous Euclidean space and unconstrained 
 
 All the travel modes can be represented with the time as the third dimension (2D + T) and are of active forms.
 
-Respective modelling approaches:  ...
-
-What additional spatial analysis methods:  classification algorithms for RQ 3.
+As for additional spatial analysis methods, classification algorithms for RQ3 will be explored.
 
 ## R concepts
 <!-- Which R concepts, functions, packages will you mainly use. What additional spatial analysis methods will you be using? -->
