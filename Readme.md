@@ -12,13 +12,17 @@ Analysis Geo 880**
 
 ## Abstract 
 <!-- (50-60 words) -->
-Our project aims to better understand movement pattern of different travel modes. By first decribing and summarizing characteristics of trajectory data, an characteristics dataset with label of different travel modes will be generated. Combined with environmental data such as traffic network, an identification model will be built. Last, the model will be assessed and evaluated.
+Our project aims to better understand movement pattern of different travel modes. By first describing and summarizing characteristics of trajectory data, an characteristics dataset with label of different travel modes will be generated. Combined with environmental data such as traffic network, an identification model will be built. Last, the model will be assessed and evaluated.
 
 
+#### Detailed
 <!-- long version -->
 Our project aims at defining, describing and identifying movement patterns for different travel modes. Movement data has been collected over a period of approximately two months and a various range of travel modes have been recorded: train, tram, bus, car, walking, cycling, running, kick scooter, ski, ski-lift and boat. A labeled dataset with travel modes will be extracted from the collected raw data by cleaning, filtering and segmentation.  
+
 The movement pattern for each travel mode will first be characterized by the following metrics: speed (acceleration, deceleration), sinuosity (angle, direction), and environmental factors related to the studied travel mode: railway tracks, tram lines, road network, walking path, slope, etc. Furthermore, it will be decribed and summarized with the knowledge of previous studies on travel modes identification from GPS tracks.
+
 In a second step, the suitability of these characteristics for identifying travel modes will be studied. Limitation of data and methods will also be discussed. For example are the difference of the aforementioned chracteristics significant between two travel modes, and does our recorded data contain enough information.   
+
 Based on the answer, a model will then be attempted to build. We will apply it to collected data to detect different travel modes. The results of the identification will finally be evaluated with the labeled dataset.
 
 ## Research Questions
