@@ -1,0 +1,106 @@
+---
+title: "data_mb"
+author: "Martine Besse"
+date: "2023-05-12"
+output: html_document
+---
+# Environment
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("readr") 
+library("sf")
+library("ggplot2")
+library("dplyr")
+```
+
+# Posmo data exploration
+
+## Import, clean and add useful attributes
+```{r}
+#import and convert to sf object
+posmo <- read_csv("./data/posmo_2023-05-31.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+#clean and add columns
+posmo$source <- "posmo"
+
+posmo <- posmo %>% 
+       rename("tmode_posmo" = "transport_mode")
+
+posmo$tmode_manual <- NA
+
+to_remove <- c("place_name", "lon_x", "lat_y", "user_id")
+posmo <- posmo[ , !(names(posmo) %in% to_remove)]
+
+#add East and North columns
+coords <- posmo |> st_coordinates()
+posmo <- posmo |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+#timelag
+posmo <- mutate(posmo, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo <- posmo %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
+
+#speed
+posmo <- posmo %>% mutate(speed_ms = steplength_m/timelag)
+
+#extract Hour of the day
+posmo <- posmo |> 
+  mutate(
+    H = as.numeric(format(as.POSIXct(posmo$datetime), format = "%H"))
+  )
+
+col_order <- c("source", "datetime", "H", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "timelag", "steplength_m", "speed_ms", "geometry")
+posmo <- posmo[, col_order]
+posmo
+```
+
+## Overview
+### Overview map
+```{r}
+ggplot() +
+  geom_path(data = posmo, aes(x = E, y = N), colour = 'red') +
+  ggtitle("My trajectories from starting to record data 30.03.2023 to now") +
+  coord_equal()
+```
+
+### Overview time
+```{r}
+ggplot(posmo, aes(H)) +
+  geom_histogram(binwidth = .6)
+```
+
+
+### Select one single date
+Select one single date:  
+```{r}
+posmo_filter <- posmo |>
+    filter(as.Date(datetime) == "2023-05-4")
+posmo_filter
+```
+
+```{r}
+#plot trajectories
+ggplot(posmo_filter, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+## Clean data
+(remove steps when no recorded, static etc.)
+
+
+## Visualise per zone
+
+### Zurich
+...
+
+### Waadt
+...
+
+
+# Labelize data
+tendency per labelized data (mean speed, mean distance, etc.)
