@@ -11,6 +11,7 @@ timelag (sec)
 steplength_m
 speed_ms
 acceleration
+slope
 sinuosity
 geometry
 
