@@ -1,0 +1,128 @@
+---
+title: "GEO880-G3-Report"
+author: "Martine Besse"
+date: "2023-06-03"
+always_allow_html: true
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    number_sections: no
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r initialisation, warning = FALSE, message = FALSE}
+# initialisation code copied on file GEO872-session-01-solution.rmd
+
+# packages:
+
+## Default repository
+local({r <- getOption("repos")
+       r["CRAN"] <- "http://cran.r-project.org" 
+       options(repos=r)
+})
+
+check_pkg <- function(x)
+  {
+    if (!require(x,character.only = TRUE, quietly = TRUE))
+    {
+      install.packages(x,dep=TRUE)
+        if(!require(x,character.only = TRUE, quietly = TRUE)) stop("Package not found")
+    }
+}
+
+# Call check_pkg() to install/load the required packages. 
+check_pkg("sf")
+check_pkg("readr") 
+check_pkg("wordcountaddin")
+```
+
+# Criteria:
+length: 30'000 - 50'000  
+Report your work in a written project report. The report has two functions:  
+– It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.  
+– It will be used to evaluate and mark your project.
+
+Your report shall:
+– cover how you went about investigating your research questions. Describe your data science ideas and how you implemented your ideas.
+– present the results of your study and discuss them in the light of your research questions. What have you achieved and what would be further steps for future research?
+– report problems and limitations you encountered along the way and the solutions you chose to overcome these, be it limitations with respect to the data sources, the tools or any other source of limitation.
+– discuss your data science choices in the light of the theory covered in the lectures, group works, and your reading assignments.
+
+Good example: https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html
+
+# Introduction
+## Research questions
+1. Do the characteristics of movement trajectories differ beetween different travel modes?
+2. Could the characteristics be used to identify travel mode?
+3. How to identify different travel modes with movement trajectories? Could a identification model be built?
+4. How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
+
+## Background
+Literature review
+- list of travel modes considered in our study.
+- characteristics specific to the mean of transport
+
+# Methodology
+First the trajectories data will be prepared to be fed for machine learning: data cleaning, labelizing, values extracted.
+
+Labels list: boat, train, etc.
+
+## Preprocessing of trajectories data
+### Posmo data
+- clean GPS data and have basic common columns attributes
+- labelize data
+- overview
+...
+
+```{r, echo = FALSE}
+data <- read.csv("./data/posmo_2023-05-31.csv")
+
+```
+
+
+### GPS data
+- clean GPS data and have basic common columns attributes
+- labelize data
+- overview
+...
+
+### Merge datasets and compute variables by mean of transports
+- Compute new variables: timelag, steplength, speed, acceleration, slope, etc.
+- remove statics (ex.3)
+- Add segment IDs (ex.3 - task 4)
+- Compute mean variables per segment (ex.2 task 5 (rolling windows))
+-> summarize the variables by mean of transports
+
+- general overview for each mean of transports
+
+### Annotate trajectories with environment datasets
+- datasets descriptions
+- annotate trajectories
+
+
+## Machine Learning
+...
+
+# Results
+...
+
+# Discussion
+- Answer the 4 RQ
+
+## Problems encoutered / challenges
+- posmo map matching
+
+## Limitations
+...
+
+# Conclusion
+...
+
+
+
