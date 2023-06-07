@@ -11,13 +11,18 @@ library("readr")
 library("sf")
 library("ggplot2")
 library("dplyr")
+library("lubridate") #for timezones
+library("raster")
 ```
 
 # Posmo data exploration
 
 ## Import, clean and add useful attributes
+### Clean posmo
 ```{r}
 #import and convert to sf object
+#posmo <- read_csv("./data/posmo_2023-06-02T00_00_00+02_00-2023-06-02T23_59_59+02_00.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
 posmo <- read_csv("./data/posmo_2023-05-31.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
@@ -36,6 +41,18 @@ coords <- posmo |> st_coordinates()
 posmo <- posmo |> 
   mutate(E =  coords[,1], N = coords[,2])
 
+#update timezone
+posmo <- posmo %>%
+  mutate(
+    datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
+  )
+
+```
+
+### Add new variables
+#### Compute new values
+```{r}
+#compute new values
 #timelag
 posmo <- mutate(posmo, timelag = as.numeric(difftime(lead(datetime), datetime)))
 
@@ -44,17 +61,42 @@ posmo <- posmo %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
 
 #speed
 posmo <- posmo %>% mutate(speed_ms = steplength_m/timelag)
+```
 
-#extract Hour of the day
-posmo <- posmo |> 
-  mutate(
-    H = as.numeric(format(as.POSIXct(posmo$datetime), format = "%H"))
-  )
 
-col_order <- c("source", "datetime", "H", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "timelag", "steplength_m", "speed_ms", "geometry")
+#### Add heights
+The height comes from the Digital height model DHM25 provided by swisstopo. The raster has been preprocessed on QGIS to be converted into the epsg 2056 (previously 21781) to save calculation time.  
+The resolution is 25m. To have more precise information, we could look at the swiss3DAlti if needed.  
+```{r}
+#Extract values from rasters:
+#https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
+dhm25 <- raster("./data/dhm25_raster/dhm25_2056.tif")
+rasValue <- extract(dhm25, posmo)
+posmo$H <- rasValue
+```
+
+```{r}
+plot(dhm25)
+plot(posmo)
+```
+
+Simplification: we did not consider height of soil compared to height of person or public transport.  
+As it is a relative variable to calculate slope, it does not matter.  
+
+```{r}
+# Add slope
+posmo <- posmo %>% mutate(slope = (lead(H) - H)/steplength_m * 100)
+```
+
+
+
+### Reorder columns
+```{r}
+col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry")
 posmo <- posmo[, col_order]
 posmo
 ```
+
 
 ## Overview
 ### Overview map
@@ -65,9 +107,22 @@ ggplot() +
   coord_equal()
 ```
 
+```{r}
+#plot only points
+ggplot(posmo) +
+  geom_point(aes(E, N, colour = datetime)) +
+  coord_equal() #so equally space North and East
+```
+
 ### Overview time
 ```{r}
-ggplot(posmo, aes(H)) +
+#extract Hour of the day
+posmo_hour <- posmo |> 
+  mutate(
+    H = as.numeric(format(as.POSIXct(posmo$datetime), format = "%H"))
+  )
+
+ggplot(posmo_hour, aes(H)) +
   geom_histogram(binwidth = .6)
 ```
 
@@ -90,17 +145,209 @@ ggplot(posmo_filter, aes(E,N, color = datetime)) +
 
 
 ## Clean data
-(remove steps when no recorded, static etc.)
-
+(remove steps when no recorded, static etc.)  
+remove statics: Exercice 3  
+Add segment IDs: exercice 3 - task 4 
+(similarity measure ex3)
+assigning 
 
 ## Visualise per zone
+Boundaries:  
+Zurich: lower left: 2674900.0, 1244000.0  
+        upper right: 2689600.0, 1257300  
 
-### Zurich
-...
+Waadt: 	lower left: 2480000, 1127600  
+        upper right: 2575200, 1195100  
+```{r}
+# add regions
+zh_ll <- c(2674900, 1244000)
+zh_ur <- c(2692100, 1260300)
 
-### Waadt
-...
+wt_ll <- c(2480000, 1127600)
+wt_ur <- c(2575200, 1195100)
+
+
+posmo$region <- NA
+posmo <- posmo |> 
+  mutate(region = case_when(E > zh_ll[1] & E < zh_ur[1] & N > zh_ll[2] & N < zh_ur[2] ~ 'Zurich', E > wt_ll[1] & E < wt_ur[1] & N > wt_ll[2] & N < wt_ur[2] ~ 'Waadt'))
+
+posmo_zh <- posmo %>% filter(region == "Zurich")
+posmo_waadt <- posmo %>% filter(region == "Waadt")
+
+
+ggplot(posmo_waadt, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
 
 
 # Labelize data
 tendency per labelized data (mean speed, mean distance, etc.)
+
+Labels:  
+car, train, bus, tram, cycling, kick-scooter, walk, ski, ski_lift, boat
+To be sure to cut out unwanted parts, add a margin to the sample.  
+
+## Boats
+```{r}
+#BOAT (14.05)
+#2023-05-14 13:30:00
+#2023-05-14 14:42:00
+
+posmo_boat <- posmo |>
+    filter(datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")) %>% mutate(tmode_manual = "boat")
+posmo_boat
+
+#plot trajectories
+ggplot(posmo_boat, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+## Railways
+02.06
+26.05, 
+9.05, 
+05.05, 
+28.04, 
+(04.04, 03.03)
+
+TO TAKE: 03.04, 4.04, etc.
+
+31.03 ? -> map matched
+30.03
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-03-30 17:00:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-03-30 17:52:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-05-26 18:10:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-05-26 19:15:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-05-09 8:40:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-05-09 10:55:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-04-28 12:20:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-04-28 12:50:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-04-28 17:00:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-04-28 18:45:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-04-03 22:15:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-04-04 00:22:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+## Cycling
+02.05
+03.05,
+15.05,
+17.05,
+23.05,
+24.05,
+25.05,
+31.05,
+1.06
+```{r}
+
+```
+
+```{r}
+
+```
+
+# Qualify our labelized dataset 
+Deriving speed: Ex2 - task5 (rolling window)  
+
+
+# Limitations due to map matching
+
+For rails:  
+ex. of trip 03.31  
+16:20 -> 16:40
+THIS ILLUSTRATES ISSUE OF MAP MATCHING:  
+I took the leb but it matched to railways...
+```{r}
+posmo_rails <- posmo |>
+    filter(datetime > as.POSIXct("2023-03-31 16:10:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-03-31 16:50:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_rails
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+
+write.csv(posmo_rails, "lebissue.csv")
+```
+
+```{r}
+
+posmo_issue2 <- posmo |>
+    filter(datetime > as.POSIXct("2023-06-02 18:30:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-06-02 18:41:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_issue2
+
+#plot trajectories
+ggplot(posmo_issue2, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+
+#write.csv(posmo_rails, "lebissue.csv")
+```

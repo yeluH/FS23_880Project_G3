@@ -39,7 +39,7 @@ check_pkg <- function(x)
 # Call check_pkg() to install/load the required packages. 
 check_pkg("sf")
 check_pkg("readr") 
-check_pkg("wordcountaddin")
+#check_pkg("wordcountaddin") -> ma: does not work on my computer :(
 ```
 
 # Criteria:
@@ -75,7 +75,7 @@ Labels list: boat, train, etc.
 
 ## Preprocessing of trajectories data
 ### Posmo data
-- clean GPS data and have basic common columns attributes
+- clean GPS data and add basic common columns attributes
 - labelize data
 - overview
 ...
@@ -107,6 +107,7 @@ data <- read.csv("./data/posmo_2023-05-31.csv")
 
 
 ## Machine Learning
+
 ...
 
 # Results
