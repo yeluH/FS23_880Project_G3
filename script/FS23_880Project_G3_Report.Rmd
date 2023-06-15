@@ -260,7 +260,59 @@ posmo <- posmo %>%
 
 ### GPS data
 - clean GPS data and have basic common columns attributes
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+## Load the data
+gps_data_raw <- read_delim("D:/GEO880/Project/yelu_dataset_0609.csv", ";")
+
+## Use right coordinate system and preserve original E/N columns
+gps_data_raw <- st_as_sf(gps_data_raw, coords = c("Longitude", "Latitude"), crs = 4326, remove = FALSE)
+gps_data <- gps_data_raw %>% st_transform(crs = 2056)
+## Select needed columns
+gps_data <- select(gps_data, Date, Time, Latitude, Longitude, Altitude, geometry)
+
+gps_data$Datetime <- as.POSIXct(paste(as.Date(gps_data$Date, format = '%d.%m.%Y'), data$Time), format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+gps_data <- gps_data %>% mutate(Datetime = Datetime %>% with_tz(tzone = "Europe/Zurich"))
+
+gps_data$source <- "gps"
+gps_data <- select(gps_data, source, Datetime, Latitude, Longitude, Altitude, geometry)
+
+
+# dataFolder   <- here::here("D:/GEO880/Project/")
+# zurich_map <- st_read(file.path(dataFolder, "stadtkreis/stadtkreis/Stadtkreis.shp"))
+# zurich_map <- st_transform(zurich_map, epsg = 2056)
+
+```
+
+
 - labelize data
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Add column for travel mode
+gps_data$travelmode <- NA
+
+
+# Conditions for different travel modes
+condition_bus <- gps_data$Datetime >= as.POSIXct("2023-04-21 16:18:35") &  gps_data$Datetime <= as.POSIXct("2023-04-21 16:23:40")
+
+condition_tram <- 
+  gps_data$Datetime >= as.POSIXct("2023-04-21 17:18:55") & gps_data$Datetime <= as.POSIXct("2023-04-21 17:26:05") | 
+  gps_data$Datetime >= as.POSIXct("2023-04-25 15:07:50") & gps_data$Datetime <= as.POSIXct("2023-04-25 15:11:55") | 
+  gps_data$Datetime >= as.POSIXct("2023-04-25 17:40:50") & gps_data$Datetime <= as.POSIXct("2023-04-25 17:47:20")
+
+condition_walk <- 
+  gps_data$Datetime >= as.POSIXct("2023-04-21 16:13:40") & gps_data$Datetime <= as.POSIXct("2023-04-21 16:16:25") |
+  gps_data$Datetime >= as.POSIXct("2023-04-25 15:37:00") & gps_dataDatetime <= as.POSIXct("2023-04-25 15:40:15")
+  
+# Labelizing data
+gps_data <- gps_data %>%
+  mutate(tmode_manual = case_when(condition_walk ~ 'walk',
+                                  condition_tram ~ 'tram',
+                                  condition_bus ~ 'bus'
+                                  #condition_boat ~ 'boat',
+                                  #condition_run ~ 'run',
+                                  ))
+
+```
+
 - overview
 ...
 
