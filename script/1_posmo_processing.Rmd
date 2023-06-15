@@ -179,22 +179,34 @@ Waadt: 	lower left: 2480000, 1127600
         upper right: 2575200, 1195100  
 ```{r}
 # add regions
+#Zurich
 zh_ll <- c(2674900, 1244000)
 zh_ur <- c(2692100, 1260300)
 
+#Waadt
 wt_ll <- c(2480000, 1127600)
 wt_ur <- c(2575200, 1195100)
+
+#wallis
+ws_ll <- c(2538000, 1076875)
+ws_ur <- c(2661500, 1153125)
 
 
 posmo$region <- NA
 posmo <- posmo |> 
-  mutate(region = case_when(E > zh_ll[1] & E < zh_ur[1] & N > zh_ll[2] & N < zh_ur[2] ~ 'Zurich', E > wt_ll[1] & E < wt_ur[1] & N > wt_ll[2] & N < wt_ur[2] ~ 'Waadt'))
+  mutate(
+    region = case_when(
+      E > zh_ll[1] & E < zh_ur[1] & N > zh_ll[2] & N < zh_ur[2] ~ 'Zurich', 
+      E > wt_ll[1] & E < wt_ur[1] & N > wt_ll[2] & N < wt_ur[2] ~ 'Waadt',
+      E > ws_ll[1] & E < ws_ur[1] & N > ws_ll[2] & N < ws_ur[2] ~ 'Wallis'
+      )
+    )
 
 posmo_zh <- posmo %>% filter(region == "Zurich")
 posmo_waadt <- posmo %>% filter(region == "Waadt")
+posmo_wallis <- posmo %>% filter(region == "Wallis")
 
-
-ggplot(posmo_waadt, aes(E,N, color = datetime)) +
+ggplot(posmo_wallis, aes(E,N, color = datetime)) +
   geom_point() +
   geom_path() +
   coord_equal() #so equally space North and East
@@ -794,6 +806,9 @@ m <- leaflet() %>%
 
 # Plot the leaflet object m
 m
+
+
+posmo
 ```
 
 
