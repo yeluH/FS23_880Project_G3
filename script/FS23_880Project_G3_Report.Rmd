@@ -44,6 +44,7 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
+#https://github.com/benmarwick/wordcountaddin
 #check_pkg("wordcountaddin") -> ma: does not work on my computer :(
 ```
 
@@ -271,6 +272,10 @@ posmo <- posmo %>%
 ```{r}
 #here merge with gps tracker
 mvmt_data <- posmo
+
+col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "geometry")
+mvmt_data <- mvmt_data[, col_order]
+mvmt_data
 ```
 
 #### Overview of Posmo and GPS tracker datasets:
@@ -309,18 +314,24 @@ Map general overview - per region (?):
 ...
 
 
-#### Compute new variables
+#### Computing trajectory derivatives
 Here we will compute all necessary values to determine mean of transport: 
 
 - speed (steplength + timelag)
 - acceleration
 - sinuosity
+- turning angles
 - slope
 - (elevation speed?)
 - ...
 - region (mainly for visualisation)
 ```{r}
 #compute new values
+#/!\ probably have to do it by group by like in exercice 2:
+# wildschwein_BE <- wildschwein_BE %>%
+#   group_by(TierName) %>%
+#   mutate(diff_s = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC)))
+
 #timelag
 mvmt_data <- mutate(mvmt_data, timelag = as.numeric(difftime(lead(datetime), datetime)))
 
@@ -362,8 +373,160 @@ mvmt_data <- mvmt_data |>
 ```
 
 #### Segmentize and deal with statics points
+- remove statics (ex.3)
+- Add segment IDs (ex.3 - task 4)
+/!\ we could use the static points for means of transport.
 ...
 
+1) 
+- Specify a temporal window 
+- calculate average distance within the temporal window
+- determine static points: choose an average distance to use as the threshold
+- segmentize according to the threshold
+- filter subtrajectories (length too small in time or distance for ex.)
+
+- assign label to segment
+
+
+posmo sampling rate: 10 sec
+average distance to consider as static: ? slowest mean of transport is walk -> 5m?
+segmentize per mean of transport?  
+how to deal with tram or bus stop that we want to keep as an indicator? n° of stop in trajectory? merge the subtrajectories together?
+
+```{r}
+#specify temporal window
+#60 seconds ?
+#/!\ ordered and by user
+
+#meanstep
+mvmt_data <- mvmt_data |>
+    mutate(
+      nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30s
+      nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20s
+      nMinus1 = sqrt((lag(E, 1) - E)^2 + (lag(N, 1) - N)^2), #dist to pos -10 sec
+      nPlus1  = sqrt((E - lead(E, 1))^2 + (N - lead(N, 1))^2), #dist to pos +10 sec
+      nPlus2  = sqrt((E - lead(E, 2))^2 + (N - lead(N, 2))^2), #dist to pos +20 sec
+      nPlus3  = sqrt((E - lead(E, 3))^2 + (N - lead(N, 3))^2) #dist to pos +30 sec
+    )
+mvmt_data <- mvmt_data |>
+    rowwise() |>
+    mutate(
+        stepMean = round(mean(c(nMinus3, nMinus2, nMinus1, nPlus1, nPlus2, nPlus3)),2)
+    ) |>
+    ungroup()
+
+#mean timelag
+mvmt_data <- mvmt_data |>
+    mutate(
+      nMinus3t = as.numeric(difftime(lag(datetime, 3), datetime)), #dist to pos -30s
+      nMinus2t = as.numeric(difftime(lag(datetime, 2), datetime)), #dist to pos -20s
+      nMinus1t = as.numeric(difftime(lag(datetime, 1), datetime)), #dist to pos -10 sec
+      nPlus1t  = as.numeric(difftime(lead(datetime, 1), datetime)), #dist to pos +10 sec
+      nPlus2t  = as.numeric(difftime(lead(datetime, 2), datetime)), #dist to pos +20 sec
+      nPlus3t  = as.numeric(difftime(lead(datetime, 3), datetime)) #dist to pos +30 sec
+    )
+
+mvmt_data <- mvmt_data |>
+    rowwise() |>
+    mutate(
+        timelag_mean = round(mean(c(nMinus3t, nMinus2t, nMinus1t, nPlus1t, nPlus2t, nPlus3t)),2)
+    ) |>
+    ungroup()
+
+#mean speed
+mvmt_data <- mvmt_data |>
+    mutate(
+      nMinus3s = nMinus3/nMinus3t, #dist to pos -30s
+      nMinus2s = nMinus2/nMinus2t, #dist to pos -20s
+      nMinus1s = nMinus1/nMinus1t, #dist to pos -10 sec
+      nPlus1s  = nPlus1/nPlus1t, #dist to pos +10 sec
+      nPlus2s  = nPlus2/nPlus2t, #dist to pos +20 sec
+      nPlus3s  = nPlus3/nPlus3t #dist to pos +30 sec
+    )
+
+
+mvmt_data <- mvmt_data |>
+    rowwise() |>
+    mutate(
+        speed_ms_mean = round(mean(c(nMinus3s, nMinus2s, nMinus1s, nPlus1s, nPlus2s, nPlus3s)),2)
+    ) |>
+    ungroup()
+
+#-> timelag = 0 -> ok parfait
+```
+
+```{r}
+#determine static points: choose an average distance to use as the threshold
+
+#try on a sampled data
+filter <- mvmt_data |>
+    filter(as.Date(datetime) == "2023-04-12")
+filter
+
+sabi <- filter |>
+  ungroup() |>
+  #mutate(static = timelag >20)
+    #mutate(static = stepMean < 10)
+  mutate(static = 
+           timelag < 5.0
+           #(timelag_mean > 1.0 | timelag_mean < -1.0) 
+           #timelag_mean != 0.0 | 
+           #is.na(timelag_mean)
+         #&
+           #(stepMean > 100)
+           )
+
+sabi_filter_static <- sabi |>
+    filter(static)
+
+sabi_filter_non <- sabi |>
+    filter(!static)
+
+
+sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
+sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = sabi_filter_non_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste(
+                     "step_mean: ", sabi_filter_non_wgs$stepMean,
+                     " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
+                     " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
+                     " timelag: ", sabi_filter_non_wgs$timelag,
+                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2)
+                     
+                     ),
+                   color = 'blue') %>%
+  addCircleMarkers(data = sabi_filter_static_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste(
+                     "step_mean: ", sabi_filter_static_wgs$stepMean,
+                     " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
+                     " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
+                     " timelag: ", sabi_filter_static_wgs$timelag,
+                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2)
+                     ),
+                   color = 'red') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('non static', 'static'),
+            title = 'static vs non static')
+
+# Plot the leaflet object m
+m
+
+# sabi_filter |>
+#     ggplot(aes(E, N)) +
+#     geom_path() +
+#     geom_point() +
+#     coord_fixed() +
+#     theme(legend.position = "bottom")
+
+```
 
 
 
