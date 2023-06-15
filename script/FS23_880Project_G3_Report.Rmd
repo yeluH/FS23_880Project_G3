@@ -542,12 +542,8 @@ ggplot(mvmt_data, aes(stepMean)) +
 
 #try on a sampled data
 filter <- mvmt_data |>
-<<<<<<< HEAD
-    filter(as.Date(datetime) == "2023-04-25") %>%
+  filter(as.Date(datetime) == "2023-04-25") %>%
   filter(is.na(tmode_manual) == FALSE)
-=======
-    filter(as.Date(datetime) == "2023-04-30")
->>>>>>> 5933929a93e97841781542282b94beba7adf0eee
 filter
 
 sabi <- filter |>
