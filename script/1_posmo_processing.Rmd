@@ -13,6 +13,7 @@ library("ggplot2")
 library("dplyr")
 library("lubridate") #for timezones
 library("raster")
+library("leaflet")
 ```
 
 # Posmo data exploration
@@ -21,9 +22,7 @@ library("raster")
 ### Clean posmo
 ```{r}
 #import and convert to sf object
-#posmo <- read_csv("./data/posmo_2023-06-02T00_00_00+02_00-2023-06-02T23_59_59+02_00.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
-
-posmo <- read_csv("./data/posmo_2023-05-31.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+posmo <- read_csv("./data/posmo_2023-06-14_2.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
 posmo$source <- "posmo"
@@ -64,38 +63,38 @@ posmo <- posmo %>% mutate(speed_ms = steplength_m/timelag)
 ```
 
 
-#### Add heights
-The height comes from the Digital height model DHM25 provided by swisstopo. The raster has been preprocessed on QGIS to be converted into the epsg 2056 (previously 21781) to save calculation time.  
-The resolution is 25m. To have more precise information, we could look at the swiss3DAlti if needed.  
-```{r}
-#Extract values from rasters:
-#https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
-dhm25 <- raster("./data/dhm25_raster/dhm25_2056.tif")
-rasValue <- extract(dhm25, posmo)
-posmo$H <- rasValue
-```
+<!-- #### Add heights -->
+<!-- The height comes from the Digital height model DHM25 provided by swisstopo. The raster has been preprocessed on QGIS to be converted into the epsg 2056 (previously 21781) to save calculation time.   -->
+<!-- The resolution is 25m. To have more precise information, we could look at the swiss3DAlti if needed.   -->
+<!-- ```{r} -->
+<!-- #Extract values from rasters: -->
+<!-- #https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/ -->
+<!-- dhm25 <- raster("./data/dhm25_raster/dhm25_2056.tif") -->
+<!-- rasValue <- extract(dhm25, posmo) -->
+<!-- posmo$H <- rasValue -->
+<!-- ``` -->
 
-```{r}
-plot(dhm25)
-plot(posmo)
-```
+<!-- ```{r} -->
+<!-- plot(dhm25) -->
+<!-- plot(posmo) -->
+<!-- ``` -->
 
-Simplification: we did not consider height of soil compared to height of person or public transport.  
-As it is a relative variable to calculate slope, it does not matter.  
+<!-- Simplification: we did not consider height of soil compared to height of person or public transport.   -->
+<!-- As it is a relative variable to calculate slope, it does not matter.   -->
 
-```{r}
-# Add slope
-posmo <- posmo %>% mutate(slope = (lead(H) - H)/steplength_m * 100)
-```
+<!-- ```{r} -->
+<!-- # Add slope -->
+<!-- posmo <- posmo %>% mutate(slope = (lead(H) - H)/steplength_m * 100) -->
+<!-- ``` -->
 
 
 
-### Reorder columns
-```{r}
-col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry")
-posmo <- posmo[, col_order]
-posmo
-```
+<!-- ### Reorder columns -->
+<!-- ```{r} -->
+<!-- col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry") -->
+<!-- posmo <- posmo[, col_order] -->
+<!-- posmo -->
+<!-- ``` -->
 
 
 ## Overview
@@ -112,6 +111,26 @@ ggplot() +
 ggplot(posmo) +
   geom_point(aes(E, N, colour = datetime)) +
   coord_equal() #so equally space North and East
+```
+
+
+```{r}
+posmo_wgs <- posmo %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
 ```
 
 ### Overview time
@@ -182,6 +201,26 @@ ggplot(posmo_waadt, aes(E,N, color = datetime)) +
 ```
 
 
+```{r}
+posmo_wgs <- posmo_zh %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+```
+
+
 # Labelize data
 tendency per labelized data (mean speed, mean distance, etc.)
 
@@ -195,10 +234,10 @@ To be sure to cut out unwanted parts, add a margin to the sample.
 #2023-05-14 13:30:00
 #2023-05-14 14:42:00
 
-condition_boat1 <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
+condition_boats <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
 
 posmo <- posmo %>%
-  mutate(tmode_manual = case_when(condition_boat1 ~ 'boat'))
+  mutate(tmode_manual = case_when(condition_boats ~ 'boat'))
 
 # Visualisation of all labelized tmode datasets
 posmo_boats <- posmo %>% filter(tmode_manual == "boat")
@@ -210,48 +249,130 @@ ggplot(posmo_boats, aes(E,N, color = datetime)) +
   coord_equal() #so equally space North and East
 ```
 
-## Railways
-TO TAKE: -
-
--02.06
-26.05
-09.05
--05.05
-28.04
--04.04
-03.04
--31.03 -> to take (but map matched)
-30.03
-
+## Ski
+-15.04, 
+-13.04, 
+12.04
+### Cable car
 ```{r}
-#select train segments
-condition_train1 <- posmo$datetime > as.POSIXct("2023-03-30 17:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-03-30 17:52:00", tz = "Europe/Zurich")
+condition_cable_cars <- 
+  posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich")
 
-condition_train2 <- posmo$datetime > as.POSIXct("2023-05-26 18:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-26 19:15:00", tz = "Europe/Zurich")
-
-condition_train3 <- posmo$datetime > as.POSIXct("2023-05-09 8:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-09 10:55:00", tz = "Europe/Zurich")
-
-condition_train4 <- posmo$datetime > as.POSIXct("2023-04-28 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-28 12:50:00", tz = "Europe/Zurich")
-
-condition_train5 <- posmo$datetime > as.POSIXct("2023-04-03 22:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 00:22:00", tz = "Europe/Zurich")
-
-condition_trains <- (condition_train1) | (condition_train2) | (condition_train3) | (condition_train4) | (condition_train5)
-
-#labelize data
 posmo <- posmo %>%
-  mutate(tmode_manual = case_when(condition_trains ~ 'train'))
+  mutate(tmode_manual = case_when(condition_cable_cars ~ 'cable_car'))
 
-# Visualisation of all labelized rails datasets
-posmo_rails <- posmo %>% filter(tmode_manual == "train")
+# Visualisation of all labelized tmode datasets
+posmo_cable_cars <- posmo %>% filter(tmode_manual == "cable_car")
 
 #plot trajectories
-ggplot(posmo_rails, aes(E,N, color = datetime)) +
+ggplot(posmo_cable_cars, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+### Ski lift
+```{r}
+condition_ski_lifts <- 
+  posmo$datetime > as.POSIXct("2023-04-12 09:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 09:51:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 9:59:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 10:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:24:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 10:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:57:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:08:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich")
+
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_ski_lifts ~ 'ski_lift'))
+
+# Visualisation of all labelized tmode datasets
+posmo_ski_lifts <- posmo %>% filter(tmode_manual == "ski_lift")
+
+#plot trajectories
+ggplot(posmo_ski_lifts, aes(E,N, color = datetime)) +
   geom_point() +
   geom_path() +
   coord_equal() #so equally space North and East
 ```
 
 
+### T-bar
+```{r}
+condition_t_bars <- 
+  posmo$datetime > as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") 
+
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_t_bars ~ 't_bar'))
+
+# Visualisation of all labelized tmode datasets
+posmo_t_bars <- posmo %>% filter(tmode_manual == "t_bar")
+
+#plot trajectories
+ggplot(posmo_t_bars, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+### Ski slopes
+```{r}
+condition_skis <- 
+  posmo$datetime > as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 9:51:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 09:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 10:24:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:51:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 10:57:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:08:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich") 
+
+
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_skis ~ 'ski'))
+
+# Visualisation of all labelized tmode datasets
+posmo_skis <- posmo %>% filter(tmode_manual == "ski")
+
+#plot trajectories
+ggplot(posmo_skis, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+## Kick-scooter
+- 27.04 -> no data
+- 3.05 -> vélo
+4.05
+- 24.05 (le soir 19h)
+```{r}
+#select bikes segments
+condition_scooters <- posmo$datetime > as.POSIXct("2023-05-04 07:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-04 07:42:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-24 22:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 22:10:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-24 19:48:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 20:00:00", tz = "Europe/Zurich")
+  
+  
+#labelize data
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_scooters ~ 'kick-scooter'))
+
+# Visualisation of all labelized tmode datasets
+posmo_scooters <- posmo %>% filter(tmode_manual == "kick-scooter") #%>% filter(region == "Zurich") #just for visualization, bc only one trajectory in Lausanne
+
+#plot trajectories
+ggplot(posmo_scooters, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
 
 ## Cycling
 02.05
@@ -266,18 +387,10 @@ ggplot(posmo_rails, aes(E,N, color = datetime)) +
 
 ```{r}
 #select bikes segments
-condition_bike1 <- posmo$datetime > as.POSIXct("2023-05-02 08:31:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 08:36:00", tz = "Europe/Zurich")
-
-condition_bike2 <- posmo$datetime > as.POSIXct("2023-05-02 11:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 12:04:00", tz = "Europe/Zurich")
-
-condition_bike3 <- posmo$datetime > as.POSIXct("2023-05-02 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 18:04:00", tz = "Europe/Zurich")
-
-condition_bike4 <- posmo$datetime > as.POSIXct("2023-05-15 15:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-15 16:32:00", tz = "Europe/Zurich")
-
-#condition_bike5 <- 
-
-
-condition_bikes <- condition_bike1 | condition_bike2 | condition_bike3 | condition_bike4
+condition_bikes <- posmo$datetime > as.POSIXct("2023-05-02 08:31:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 08:36:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-02 11:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 12:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-02 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 18:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-15 15:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-15 16:32:00", tz = "Europe/Zurich") 
 
 #labelize data
 posmo <- posmo %>%
@@ -294,7 +407,113 @@ ggplot(posmo_bikes, aes(E,N, color = datetime)) +
 ```
 
 
-# Walking
+## Railways
+TO TAKE: -
+
+-02.06
+26.05
+09.05
+-05.05
+28.04
+-04.04
+03.04
+-31.03 -> to take (but map matched)
+30.03
+
+```{r}
+#select train segments
+condition_trains <- posmo$datetime > as.POSIXct("2023-03-30 17:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-03-30 17:52:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-05-26 18:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-26 19:15:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-05-09 8:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-09 10:55:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-04-28 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-28 12:50:00", tz = "Europe/Zurich") | 
+  
+  posmo$datetime > as.POSIXct("2023-06-09 19:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 21:30:00", tz = "Europe/Zurich") |
+  
+  posmo$datetime > as.POSIXct("2023-04-03 22:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 00:22:00", tz = "Europe/Zurich") |
+  
+  posmo$datetime > as.POSIXct("2023-06-09 12:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 12:48:00", tz = "Europe/Zurich") |
+  #11.06
+  posmo$datetime > as.POSIXct("2023-06-11 02:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 02:45:00", tz = "Europe/Zurich")
+  #12.06
+  posmo$datetime > as.POSIXct("2023-06-12 07:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-12 07:53:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-06-14 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 17:42:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 09:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:00:00", tz = "Europe/Zurich")
+  
+#labelize data
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_trains ~ 'train'))
+
+# Visualisation of all labelized rails datasets
+posmo_rails <- posmo %>% filter(tmode_manual == "train")
+
+#plot trajectories
+ggplot(posmo_rails, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+
+## Trams
+- 22.05
+- 13.05
+- 25.04
+
+```{r}
+#select trams segments
+condition_trams <- (posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich")) | 
+  posmo$datetime > as.POSIXct("2023-06-09 17:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:22:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-09 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 13:54:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 11:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:23:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-05 18:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 19:03:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-05 23:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich")
+
+  
+#labelize data
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_trams ~ 'tram'))
+
+# Visualisation of all labelized tmode datasets
+posmo_trams <- posmo %>% filter(tmode_manual == "tram") %>% filter(region == "Zurich") #Waadt #just for visualization, 
+
+#plot trajectories
+ggplot(posmo_trams, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+## Bus
+- 03.05
+- 02.05
+25.04
+```{r}
+#select walking segments
+condition_bus <- posmo$datetime > as.POSIXct("2023-06-09 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:31:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-24 19:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 19:49:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-24 22:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 22:22:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-07 07:53:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-07 08:12:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-06-07 08:35:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-07 08:45:00", tz = "Europe/Zurich") | posmo$datetime > as.POSIXct("2023-06-07 19:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-07 19:37:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 20:39:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 20:44:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 21:03:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 21:17:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 08:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:25:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 08:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:35:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-05 18:37:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 18:46:00", tz = "Europe/Zurich") 
+
+#labelize data
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_bus ~ 'bus'))
+
+# Visualisation of all labelized tmode datasets
+posmo_bus <- posmo %>% filter(tmode_manual == "bus") #%>% filter(region == "Zurich") #Waadt #just for visualization, 
+
+#plot trajectories
+ggplot(posmo_bus, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
+
+
+## Walking
 29.05
 22.05
 -21.05
@@ -304,25 +523,23 @@ ggplot(posmo_bikes, aes(E,N, color = datetime)) +
 
 ```{r}
 #select walking segments
-condition_walk1 <- posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich")
+condition_walks <- 
+  posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich") | 
+  posmo$datetime > as.POSIXct("2023-04-16 15:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:56:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-13 13:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 15:01:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-13 16:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 22:01:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-13 22:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 22:29:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-20 11:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-20 22:35:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-22 11:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-22 11:42:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-29 16:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-29 16:46:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-09 11:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 12:20:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-11 02:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 03:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-12 07:53:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-12 08:07:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-06 08:11:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 09:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich")
 
-#there is some static in this one:
-condition_walk2 <- posmo$datetime > as.POSIXct("2023-04-16 15:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:56:00", tz = "Europe/Zurich")
-
-condition_walk3 <- posmo$datetime > as.POSIXct("2023-05-13 13:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 15:01:00", tz = "Europe/Zurich")
-
-condition_walk4 <- posmo$datetime > as.POSIXct("2023-05-13 16:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 22:01:00", tz = "Europe/Zurich")
-
-condition_walk5 <- posmo$datetime > as.POSIXct("2023-05-13 22:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 22:29:00", tz = "Europe/Zurich")
-
-#there is some statics
-condition_walk6 <- posmo$datetime > as.POSIXct("2023-05-20 11:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-20 22:35:00", tz = "Europe/Zurich")
-
-condition_walk7 <- posmo$datetime > as.POSIXct("2023-05-22 11:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-22 11:42:00", tz = "Europe/Zurich")
-
-condition_walk8 <- posmo$datetime > as.POSIXct("2023-05-29 16:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-29 16:46:00", tz = "Europe/Zurich")
-
-condition_walks <- condition_walk1 | condition_walk2 | condition_walk3 | condition_walk4 | condition_walk5 | condition_walk6 | condition_walk7 | condition_walk8
 
 #labelize data
 posmo <- posmo %>%
@@ -338,19 +555,203 @@ ggplot(posmo_walks, aes(E,N, color = datetime)) +
   coord_equal() #so equally space North and East
 ```
 
-
+## Car
+- 30.04
+- 25.05
+24.04
+- 22.04
+- 17.04
+- 15.04
 
 ```{r}
-# to see segments
-posmo_test <- posmo |>
-  filter(datetime > as.POSIXct("2023-05-29 16:18:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-05-29 16:46:00", tz = "Europe/Zurich"))
-posmo_test
+#select car segments
+condition_cars <- 
+  posmo$datetime > as.POSIXct("2023-06-11 15:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 17:00:00", tz = "Europe/Zurich") | 
+  posmo$datetime > as.POSIXct("2023-04-24 14:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-24 17:30:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-10 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-10 17:33:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-09 21:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 22:30:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-14 07:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 08:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-14 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 18:10:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-13 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-13 19:15:00", tz = "Europe/Zurich") 
+  
+#labelize data
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_cars ~ 'car'))
+
+# Visualisation of all labelized tmode datasets
+posmo_cars <- posmo %>% filter(tmode_manual == "car") #%>% filter(region == "Zurich") #Waadt #just for visualization, 
 
 #plot trajectories
-ggplot(posmo_test, aes(E,N, color = datetime)) +
+ggplot(posmo_cars, aes(E,N, color = datetime)) +
   geom_point() +
   geom_path() +
   coord_equal() #so equally space North and East
+```
+
+## test
+```{r}
+# to see segments
+
+#ski
+#walk
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télécabine
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:22:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:22:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 9:51:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:51:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 9:59:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 09:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:15:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:24:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:24:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich"))
+posmo_test
+
+#tire-fesse
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:51:30", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:57:30", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 10:57:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:00:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:08:00", tz = "Europe/Zurich"))
+posmo_test
+
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:08:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich"))
+posmo_test
+
+#télésiège
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich"))
+posmo_test
+
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich"))
+posmo_test
+
+#tire-fesse
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich"))
+posmo_test
+
+#ski
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich"))
+posmo_test
+
+#walk
+posmo_test <- posmo |>
+  filter(posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich"))
+posmo_test
+
+posmo_wgs <- posmo_test %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+
+# #plot trajectories
+# ggplot(posmo_test, aes(E,N, color = datetime)) +
+#   geom_point() +
+#   geom_path() +
+#   coord_equal() #so equally space North and East
 ```
 
 
@@ -358,51 +759,44 @@ ggplot(posmo_test, aes(E,N, color = datetime)) +
 #final labelizing
 posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_walks ~ 'walk',
-                                  condition_boat1 ~ 'boat',
+                                  condition_boats ~ 'boat',
                                   condition_trains ~ 'train',
-                                  condition_bikes ~ 'bike'
+                                  condition_bikes ~ 'bike',
+                                  condition_scooters ~ 'kick-scooter',
+                                  condition_cars ~ 'car',
+                                  condition_bus ~ 'bus',
+                                  condition_trams ~ 'tram',
+                                  condition_t_bars ~ 't_bar',
+                                  condition_cable_cars ~ 'cable_car',
+                                  condition_ski_lifts ~ 'ski_lift',
+                                  condition_skis ~ 'ski'
                                   ))
 
 
 posmo %>% group_by(tmode_manual) %>% count()
+
+
+posmo_filter <- posmo %>% filter(tmode_manual == "ski") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
+
+posmo_wgs <- posmo_filter %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
 ```
 
 
 # Qualify our labelized dataset 
 Deriving speed: Ex2 - task5 (rolling window)  
 
-
-# Limitations due to map matching
-For rails:  
-ex. of trip 03.31  
-16:20 -> 16:40
-THIS ILLUSTRATES ISSUE OF MAP MATCHING:  
-I took the leb but it matched to railways...
-```{r}
-posmo_issue1 <- posmo |>
-    filter(datetime > as.POSIXct("2023-03-31 16:10:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-03-31 16:50:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
-posmo_rails
-
-#plot trajectories
-ggplot(posmo_issue1, aes(E,N, color = datetime)) +
-  geom_point() +
-  geom_path() +
-  coord_equal() #so equally space North and East
-
-#write.csv(posmo_rails, "lebissue.csv")
-```
-
-```{r}
-
-posmo_issue2 <- posmo |>
-    filter(datetime > as.POSIXct("2023-06-02 18:30:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-06-02 18:41:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
-posmo_issue2
-
-#plot trajectories
-ggplot(posmo_issue2, aes(E,N, color = datetime)) +
-  geom_point() +
-  geom_path() +
-  coord_equal() #so equally space North and East
-
-#write.csv(posmo_rails, "lebissue.csv")
-```

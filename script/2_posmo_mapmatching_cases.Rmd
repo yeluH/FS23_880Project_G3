@@ -1,0 +1,286 @@
+---
+title: "2_map_matching_issues"
+author: "Martine Besse"
+date: "2023-06-08"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+# Environment
+knitr::opts_chunk$set(echo = TRUE)
+library("readr") 
+library("sf")
+library("ggplot2")
+library("dplyr")
+library("lubridate") #for timezones
+library("leaflet")
+```
+
+
+```{r}
+# Import posmo and add variables
+
+#import and convert to sf object
+posmo <- read_csv("./data/posmo_2023-06-08.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+#add East and North columns
+coords <- posmo |> st_coordinates()
+posmo <- posmo |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+#update timezone
+posmo <- posmo %>%
+  mutate(
+    datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
+  )
+
+
+#compute new values
+#timelag
+posmo <- mutate(posmo, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo <- posmo %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
+
+#speed
+posmo <- posmo %>% mutate(speed_ms = steplength_m/timelag)
+```
+
+
+# Map matching issues cases
+In this markdown, I will present two cases of map matching to show that the processed data downloaded from posmo was indeed map-matched.  
+
+## First example
+Trip from Villars-le-Terroir to Prilly:  
+- Bus from Villars-le-Terroir to Echallens  
+- Train (LEB) from Echallens to Union-Prilly.
+
+Here is a screenshot of what is visible on https://posmo.datamap.io/streaming:  
+![posmo_issue1](images/mapmatching_issue1.png)
+
+The left side present the raw data. The right the processed data.  
+As we can see, the raw trajectory (real trajectory) do not coincide with the processed one:  
+The bus trajectory is fine, but the train has been map matched to another railway near Eclépens.  
+
+The map below presents the data downloaded on posmo.datamap.io.  
+As we can see, it is the match-mapped one, and no the raw one.  
+
+```{r warning = FALSE, message=FALSE}
+posmo_issue1 <- posmo |>
+    filter(datetime > as.POSIXct("2023-03-31 16:10:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-03-31 16:50:00", tz = "Europe/Zurich"))  %>% mutate(tmode_manual = "train")
+posmo_issue1
+```
+
+See map:  
+```{r}
+posmo_issue1_wgs <- posmo_issue1 %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_issue1_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_issue1_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+```
+
+
+## Second example
+Trip from Yverdon-les-Bains to Montricher.  
+I took the car from Yverdon-les-Bains to Montricher and nothing else.
+
+Here is a screenshot of what is visible on https://posmo.datamap.io/streaming:  
+![posmo_issue1](images/mapmatching_issue2.png)
+Again, we can see the raw data does not match the processed data.  
+The left side (raw data) presents my true trajectory, very simple car ride.  
+The right side (processed data) shows the map matching from posmo to train rails. Somehow at La Sarraz I apparently took the train at 16h27 to Cossonay then jumped back to L'Isle at 16h39.  
+Then, this is the funnier part, between L'Isle at 16h39 and Villars-Bozon at 16h40, I apparently went back to La Sarraz until Le Pont. In 1 minute, I traveled ~24 km.
+
+The map below presents the data downloaded on posmo.datamap.io.
+
+```{r}
+posmo_issue2 <- posmo |>
+    filter(datetime > as.POSIXct("2023-06-02 18:00:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-06-02 19:00:00", tz = "Europe/Zurich"))
+posmo_issue2
+```
+
+```{r}
+posmo_issue2_wgs <- posmo_issue2 %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_issue2_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_issue2_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+
+posmo_issue2_wgs$datetime
+```
+
+
+# Questions
+- If these are not clear proofs of map-matching, what are they?  
+- Is it possible to get the raw data and not the processed data?  
+- If not, what is the reason?  
+
+Getting the raw data would be a key point in our project.  
+
+# Changing the travel mode in Posmo
+
+Correctly assigning the travel mode in Posmo indeed removed the error.
+
+```{r}
+# Import posmo and add variables
+
+#import and convert to sf object
+posmo_new <- read_csv("./data/posmo_new2023-06-02.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+#add East and North columns
+coords <- posmo_new |> st_coordinates()
+posmo_new <- posmo_new |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+#update timezone
+posmo_new <- posmo_new %>%
+  mutate(
+    datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
+  )
+
+
+#compute new values
+#timelag
+posmo_new <- mutate(posmo_new, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo_new <- posmo_new %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
+
+#speed
+posmo_new <- posmo_new %>% mutate(speed_ms = steplength_m/timelag)
+```
+
+```{r}
+# Import posmo and add variables
+
+#import and convert to sf object
+posmo_new2 <- read_csv("./data/posmo_new2_2023-06-02.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+#add East and North columns
+coords <- posmo_new2 |> st_coordinates()
+posmo_new2 <- posmo_new2 |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+#update timezone
+posmo_new2 <- posmo_new2 %>%
+  mutate(
+    datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
+  )
+
+
+#compute new values
+#timelag
+posmo_new2 <- mutate(posmo_new2, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo_new2 <- posmo_new2 %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
+
+#speed
+posmo_new2 <- posmo_new2 %>% mutate(speed_ms = steplength_m/timelag)
+```
+
+
+```{r}
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+    addCircleMarkers(data = posmo_issue2_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.8,
+                   popup = posmo_issue2_wgs$datetime,
+                   color = 'red') %>%
+  addCircleMarkers(data = posmo_issue2new_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.8,
+                   stroke = TRUE, fillOpacity = 0.5,
+                   popup = posmo_issue2new_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('points', 'wrong train label'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+```
+
+
+# Test
+```{r}
+# Import posmo and add variables
+
+#import and convert to sf object
+posmo <- read_csv("./data/posmo_2023-06-12.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+#add East and North columns
+coords <- posmo |> st_coordinates()
+posmo <- posmo |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+#update timezone
+posmo <- posmo %>%
+  mutate(
+    datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
+  )
+
+
+#compute new values
+#timelag
+posmo <- mutate(posmo, timelag = as.numeric(difftime(lead(datetime), datetime)))
+
+#steplength
+posmo <- posmo %>% mutate(steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2))
+
+#speed
+posmo <- posmo %>% mutate(speed_ms = steplength_m/timelag)
+```
+
+
+```{r}
+posmo_test <- posmo |>
+  filter(datetime > as.POSIXct("2023-06-12 06:18:00", tz = "Europe/Zurich") & datetime < as.POSIXct("2023-06-12 23:46:00", tz = "Europe/Zurich"))
+posmo_test
+
+
+posmo_wgs <- posmo_test %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = posmo_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = posmo_wgs$datetime,
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue'), 
+            labels = c('points'),
+            title = 'Downloaded points from posmo')
+
+# Plot the leaflet object m
+m
+```
+
