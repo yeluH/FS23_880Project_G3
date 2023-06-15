@@ -452,7 +452,16 @@ mvmt_data <- mvmt_data |>
     ) |>
     ungroup()
 
-#-> timelag = 0 -> ok parfait
+#-> timelag = 0 -> ok perfect
+
+
+summary(mvmt_data$stepMean)
+
+ggplot(mvmt_data, aes(stepMean)) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(xintercept = mean(mvmt_data$stepMean, na.rm = TRUE))
+
+
 ```
 
 ```{r}
@@ -460,28 +469,25 @@ mvmt_data <- mvmt_data |>
 
 #try on a sampled data
 filter <- mvmt_data |>
-    filter(as.Date(datetime) == "2023-04-12")
+    filter(as.Date(datetime) == "2023-04-25") %>%
+  filter(is.na(tmode_manual) == FALSE)
 filter
 
 sabi <- filter |>
   ungroup() |>
-  #mutate(static = timelag >20)
-    #mutate(static = stepMean < 10)
   mutate(static = 
-           timelag < 5.0
-           #(timelag_mean > 1.0 | timelag_mean < -1.0) 
+           #timelag < 5.0
+           (timelag_mean > 1.0 | timelag_mean < -1.0) 
            #timelag_mean != 0.0 | 
            #is.na(timelag_mean)
          #&
-           #(stepMean > 100)
+           #(stepMean > 1000)
            )
 
-sabi_filter_static <- sabi |>
-    filter(static)
 
-sabi_filter_non <- sabi |>
-    filter(!static)
-
+#Visualisation of static / non static:
+sabi_filter_static <- sabi |> filter(static)
+sabi_filter_non <- sabi |> filter(!static)
 
 sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
 sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
@@ -497,7 +503,6 @@ m <- leaflet() %>%
                      " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
                      " timelag: ", sabi_filter_non_wgs$timelag,
                      " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2)
-                     
                      ),
                    color = 'blue') %>%
   addCircleMarkers(data = sabi_filter_static_wgs,
@@ -519,7 +524,7 @@ m <- leaflet() %>%
 # Plot the leaflet object m
 m
 
-# sabi_filter |>
+# sabi_filter_non |>
 #     ggplot(aes(E, N)) +
 #     geom_path() +
 #     geom_point() +
@@ -529,6 +534,61 @@ m
 ```
 
 
+```{r}
+#Segmentize
+
+rle_id <- function(vec) {
+    x <- rle(vec)$lengths
+    as.factor(rep(seq_along(x), times = x))
+}
+
+sabi <- sabi %>%
+  mutate(
+    segment_ID_static = rle_id(static),
+    segment_ID_tmode = rle_id(tmode_manual),
+    segment_ID_both = as.numeric(segment_ID_static) * as.numeric(segment_ID_tmode)
+  )
+
+
+#unique(sabi$segment_ID_both) %>% length()
+
+#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
+
+
+# VISUALISATION
+n_segs <- sabi$segment_ID_both %>% unique() %>% length()
+sabi_wgs <- sabi %>% st_transform(crs = 4326)
+
+set.seed(2)
+factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = sabi_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste("seg_ID: ", sabi_wgs$segment_ID_both),
+                   color = ~factpal(segment_ID_both)) %>%
+  addLegend(position = 'topright', 
+            #colors = c('red'), 
+            #labels = c('static'),
+            pal = factpal,
+            values = sabi_wgs$segment_ID_both,
+            title = 'static vs non static')
+
+# Plot the leaflet object m
+m
+
+
+# ggplot(sabi, aes(E, N, color = segment_ID)) +
+#   geom_point() +
+#   geom_path() +
+#   coord_equal() +
+#   theme(legend.position = "none") +
+#   labs(subtitle = "All segments (uncleaned)")
+
+
+```
 
 
 #### Annotate trajectories with environment datasets
