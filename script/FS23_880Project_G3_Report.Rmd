@@ -1,7 +1,7 @@
 ---
 title: "GEO880-G3-Report"
 author: "Martine Besse & Yelu He"
-date: "2023-06-15"
+date: "2023-06-16"
 always_allow_html: true
 output:
   html_document:
@@ -45,15 +45,15 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
-#https://github.com/benmarwick/wordcountaddin
-#check_pkg("wordcountaddin") -> ma: does not work on my computer :(
+# https://github.com/benmarwick/wordcountaddin
+# check_pkg("wordcountaddin") -> ma: does not work on my computer :(
 
 
 #DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/script/data"
+# data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/script/data"
 #On Yelu laptop:
-#data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -98,11 +98,7 @@ Labels list: boat, train, etc.
 ```{r}
 #import and convert to sf object
 
-# working on Matine's laptop
-posmo <- read_csv(here(data_folder, "posmo_2023-06-14_2.csv")) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
-
-# working on Yelu's laptop
-#posmo <- read_csv(here(data_folder, "posmo_2023-06-14_2.csv")) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+posmo <- read_delim(here(data_folder, "posmo_2023-06-14_2.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
 posmo$source <- "posmo"
@@ -152,6 +148,9 @@ posmo$H <- rasValue
 #### Labelize posmo data
 
 ```{r}
+# Add column for travel mode
+posmo$tmode_manual <- NA
+
 #select segments
 condition_boats <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
 
@@ -275,10 +274,12 @@ posmo <- posmo %>%
                                   condition_t_bars ~ 't_bar',
                                   condition_cable_cars ~ 'cable_car',
                                   condition_ski_lifts ~ 'ski_lift',
-                                  condition_skis ~ 'ski'
+                                  condition_skis ~ 'ski',
+                                  is.na(posmo$tmode_manual) == TRUE ~ 'unclassified'
                                   ))
 # select columns
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
+unique(posmo$tmode_manual)
 
 ```
 
@@ -287,11 +288,7 @@ posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", 
 - clean GPS data and have basic common columns attributes
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
-# Yelu laptop
-#gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_0609.csv"), ";")
-
-#Martine Laptop
-gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_0609.csv"), ";")
+gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_all.csv"), ";")
 
 ## Use right coordinate system and preserve original E/N columns
 gps_data_raw <- st_as_sf(gps_data_raw, coords = c("Longitude", "Latitude"), crs = 4326, remove = FALSE)
@@ -315,7 +312,6 @@ colnames(gps_data)[3] <- "N"
 colnames(gps_data)[4] <- "E"
 colnames(gps_data)[8] <- "H"
 
-colnames(gps_data)
 # Add column for travel mode
 gps_data$tmode_manual <- NA
 
@@ -371,11 +367,14 @@ condition_run <-
 # Labelizing data
 gps_data <- gps_data %>%
   mutate(tmode_manual = case_when(condition_walk ~ 'walk',
-                                         condition_tram ~ 'tram',
-                                         condition_bus ~ 'bus',
-                                         condition_boat ~ 'boat',
-                                         condition_run ~ 'run'
-                                         ))
+                                  condition_tram ~ 'tram',
+                                  condition_bus ~ 'bus',
+                                  condition_boat ~ 'boat',
+                                  condition_run ~ 'run',
+                                  is.na(gps_data$tmode_manual) == TRUE ~ 'unclassified'
+                                 ))
+
+unique(gps_data$tmode_manual)
 
 ```
 
@@ -390,7 +389,7 @@ gps_data <- gps_data %>%
 ```{r}
 #here merge with gps tracker
 mvmt_data <- rbind(posmo, gps_data)
-
+unique(mvmt_data$tmode_manual)
 col_order <- c("source", "datetime", "tmode_manual" ,"E", "N", "H", "geometry")
 mvmt_data <- mvmt_data[, col_order]
 mvmt_data
@@ -632,8 +631,7 @@ SAMPLE DATA FOR TRYING IT OUT
 ```{r}
 #try on a sampled data
 filter <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-05-29") %>%
-  filter(is.na(tmode_manual) == FALSE)
+  filter(as.Date(datetime) == "2023-06-15")
 filter
 ```
 
