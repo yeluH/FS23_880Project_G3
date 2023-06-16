@@ -1,6 +1,6 @@
 TODO
 -------
-( 0) Labelize data)
+0) Labelize data
 
 1) Compute all trajectories derivatives (speed, sinuosity, etc. (see characteristic list)) -> YELU
 - Summarize it per segments (Doing moving window for every derivative?)
