@@ -1,0 +1,18 @@
+Characteristics for segments dataset:
+segment_id
+length
+time (time duration of one segment)
+speed:
+  horizontal speed: mean, std, range
+  vertical speed: mean, std, range
+sinuosity: mean, std, range(difference between biggest and smallest)
+acceleration: mean, std, range
+slope: mean, std, range
+tmode_manual
+
+distance to train/tram/bus station
+
+
+Optional (in discuss for further optimization/improvement)
+(proportion of static points for train/tram/bus stops)
+(average time duration of pause for train/tram/bus stops)
