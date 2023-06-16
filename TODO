@@ -1,0 +1,34 @@
+TODO
+-------
+0) Labelize data
+
+1) Compute all trajectories derivatives (speed, sinuosity, etc. (see characteristic list)) -> YELU
+- Summarize it per segments (Doing moving window for every derivative?)
+
+2) Annotate trajectories with proximity to environment datasets (TP network, topography) -> MARTINE
+Per segment (% of points in the proximity)
+does it intersect to [] TRUE/FALSE:
+- highway (10m)
+- railways - train (10m)
+- railways - trams (10m)
+- bus stops (buffer 5m)
+- lake (inside: 1m)
+- mountain area (inside)
+
+3) Summarize characteristics per mean of transport
+
+4) Machine Learning
+...
+
+Characteristics list:
+  segment_id
+  length
+  time (time duration of one segment)
+  speed:
+    horizontal speed: mean, std, range
+    vertical speed: mean, std, range
+  sinuosity: mean, std, range(difference between biggest and smallest)
+  acceleration: mean, std, range
+  slope: mean, std, range
+  tmode_manual
+
