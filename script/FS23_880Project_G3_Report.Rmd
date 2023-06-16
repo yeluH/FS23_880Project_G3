@@ -51,7 +51,7 @@ check_pkg("leaflet")
 
 #DATA FOLDER
 #On Martine laptop:
-# data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/script/data"
+#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
 data_folder <- "D:/GEO880/Project"
 ```
@@ -279,8 +279,6 @@ posmo <- posmo %>%
                                   ))
 # select columns
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
-unique(posmo$tmode_manual)
-
 ```
 
 
@@ -373,9 +371,6 @@ gps_data <- gps_data %>%
                                   condition_run ~ 'run',
                                   is.na(gps_data$tmode_manual) == TRUE ~ 'unclassified'
                                  ))
-
-unique(gps_data$tmode_manual)
-
 ```
 
 - overview
@@ -424,7 +419,7 @@ m
 Map general overview - labelized segments:  
 ```{r}
 #map overview
-mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326) %>% filter(is.na(tmode_manual) == FALSE)
+mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326) %>% filter(tmode_manual != "classified")
 
 
 
@@ -503,8 +498,6 @@ mvmt_data <-
     speed_ms = steplength_m/timelag,
     slope = (lead(H) - H)/steplength_m * 100
     )
-
-
 ```
 
 
@@ -555,242 +548,79 @@ segmentize per mean of transport?
 how to deal with tram or bus stop that we want to keep as an indicator? n° of stop in trajectory? merge the subtrajectories together?
 
 
-TEMPORAL WINDOW  
-
-```{r}
-#specify temporal window
-#60 seconds ?
-#/!\ ordered and by user
-#mvmt_data <- mvmt_data %>% arrange(desc(datetime))
-
-
-#meanstep
-mvmt_data <- mvmt_data |>
-  group_by(source) %>%
-    mutate(
-      nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30s
-      nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20s
-      nMinus1 = sqrt((lag(E, 1) - E)^2 + (lag(N, 1) - N)^2), #dist to pos -10 sec
-      nPlus1  = sqrt((E - lead(E, 1))^2 + (N - lead(N, 1))^2), #dist to pos +10 sec
-      nPlus2  = sqrt((E - lead(E, 2))^2 + (N - lead(N, 2))^2), #dist to pos +20 sec
-      nPlus3  = sqrt((E - lead(E, 3))^2 + (N - lead(N, 3))^2) #dist to pos +30 sec
-    )
-mvmt_data <- mvmt_data |>
-    rowwise() |>
-    mutate(
-        stepMean = round(mean(c(nMinus3, nMinus2, nMinus1, nPlus1, nPlus2, nPlus3)),2)
-    ) |>
-    ungroup()
-
-#mean timelag
-mvmt_data <- mvmt_data |>
-  group_by(source) %>%
-    mutate(
-      nMinus3t = as.numeric(difftime(lag(datetime, 3), datetime)), #dist to pos -30s
-      nMinus2t = as.numeric(difftime(lag(datetime, 2), datetime)), #dist to pos -20s
-      nMinus1t = as.numeric(difftime(lag(datetime, 1), datetime)), #dist to pos -10 sec
-      nPlus1t  = as.numeric(difftime(lead(datetime, 1), datetime)), #dist to pos +10 sec
-      nPlus2t  = as.numeric(difftime(lead(datetime, 2), datetime)), #dist to pos +20 sec
-      nPlus3t  = as.numeric(difftime(lead(datetime, 3), datetime)) #dist to pos +30 sec
-    )
-
-mvmt_data <- mvmt_data |>
-    rowwise() |>
-    mutate(
-        timelag_mean = round(mean(c(nMinus3t, nMinus2t, nMinus1t, nPlus1t, nPlus2t, nPlus3t)),2)
-    ) |>
-    ungroup()
-
-#mean speed
-mvmt_data <- mvmt_data |>
-  group_by(source) %>%
-    mutate(
-      nMinus3s = nMinus3/nMinus3t, #dist to pos -30s
-      nMinus2s = nMinus2/nMinus2t, #dist to pos -20s
-      nMinus1s = nMinus1/nMinus1t, #dist to pos -10 sec
-      nPlus1s  = nPlus1/nPlus1t, #dist to pos +10 sec
-      nPlus2s  = nPlus2/nPlus2t, #dist to pos +20 sec
-      nPlus3s  = nPlus3/nPlus3t #dist to pos +30 sec
-    )
-
-
-mvmt_data <- mvmt_data |>
-    rowwise() |>
-    mutate(
-        speed_ms_mean = round(mean(c(nMinus3s, nMinus2s, nMinus1s, nPlus1s, nPlus2s, nPlus3s)),2)
-    ) |>
-    ungroup()
-
-#-> if timelag = 0 -> it means there was a record every 10 sec, which is good.
-
-
-summary(mvmt_data$stepMean)
-```
-
-SAMPLE DATA FOR TRYING IT OUT
+0) SAMPLE DATA FOR TRYING IT OUT
 ```{r}
 #try on a sampled data
-filter <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-06-15")
-filter
+sabi <- mvmt_data |>
+  filter(as.Date(datetime) == "2023-05-29")
+  #filter(tmode_manual == "boat")
+sabi
 ```
 
 
-RECORDING STOPPED  
+1) Remove gaps in recording
 
 ```{r}
 #determine static points: choose an average distance to use as the threshold
-sabi_gap <- filter |>
+sabi_gap <- sabi |>
   ungroup() |>
   mutate(gap = timelag > 30)
 
 
 #Visualisation of static / non static:
-sabi_filter_static <- sabi_gap |> filter(gap)
+sabi_filter_gap <- sabi_gap |> filter(gap)
 sabi_filter_non <- sabi_gap |> filter(!gap)
 
-sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
+sabi_filter_gap_wgs <- sabi_filter_gap %>% st_transform(crs = 4326)
 sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
   addCircleMarkers(data = sabi_filter_non_wgs,
-                   #opacity = 0.3,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", sabi_filter_non_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
                      " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
                      " timelag: ", sabi_filter_non_wgs$timelag,
                      " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
                      " source: ", sabi_filter_non_wgs$source
                      ),
                    color = 'blue') %>%
-  addCircleMarkers(data = sabi_filter_static_wgs,
-                   #opacity = 0.3,
+  addCircleMarkers(data = sabi_filter_gap_wgs,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", sabi_filter_static_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
-                     " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_static_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2),
-                     " source: ", sabi_filter_static_wgs$source
+                     " steplength: ", round(sabi_filter_gap_wgs$steplength_m,2),
+                     " timelag: ", sabi_filter_gap_wgs$timelag,
+                     " speed_ms: ", round(sabi_filter_gap_wgs$speed_ms,2),
+                     " source: ", sabi_filter_gap_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
             colors = c('blue', 'red'), 
-            labels = c('non static', 'static'),
-            title = 'static vs non static')
+            labels = c('no gap', 'gap'),
+            title = 'Gap in the data')
 
 # Plot the leaflet object m
 m
-
-# sabi_filter_non |>
-#     ggplot(aes(E, N)) +
-#     geom_path() +
-#     geom_point() +
-#     coord_fixed() +
-#     theme(legend.position = "bottom")
-
 ```
 
-STATIC / NON STATIC  
+
+2) Segmentation per user and transport mode  
 
 ```{r}
-#determine static points: choose an average distance to use as the threshold
-
-#try on a sampled data
-sabi <- sabi_gap |>
-  ungroup() |>
-  mutate(static = 
-           #timelag < 5.0
-           (timelag_mean > 1.0 | timelag_mean < -1.0) 
-           #timelag_mean != 0.0 | 
-           #is.na(timelag_mean)
-         #&
-           #(stepMean > 1000)
-           )
-
-
-#Visualisation of static / non static:
-sabi_filter_static <- sabi |> filter(static)
-sabi_filter_non <- sabi |> filter(!static)
-
-sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
-sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = sabi_filter_non_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste(
-                     "step_mean: ", sabi_filter_non_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
-                     " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_non_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
-                     " source: ", sabi_filter_non_wgs$source
-                     ),
-                   color = 'blue') %>%
-  addCircleMarkers(data = sabi_filter_static_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste(
-                     "step_mean: ", sabi_filter_static_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
-                     " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_static_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2),
-                     " source: ", sabi_filter_static_wgs$source
-                     ),
-                   color = 'red') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('non static', 'static'),
-            title = 'static vs non static')
-
-# Plot the leaflet object m
-m
-
-# sabi_filter_non |>
-#     ggplot(aes(E, N)) +
-#     geom_path() +
-#     geom_point() +
-#     coord_fixed() +
-#     theme(legend.position = "bottom")
-
-```
-
-SEGMENTATION  
-
-```{r}
-#Segmentize
-
+#function source: Exercice3
 rle_id <- function(vec) {
     x <- rle(vec)$lengths
     as.factor(rep(seq_along(x), times = x))
 }
 
-# Add user id so we are also sure that the segments are separated by user
-#TODO: maybe multiplication is not the best way to build a unique id.
-
-sabi_segmentized <- sabi %>%
+sabi_segmentized <- sabi_gap %>%
   mutate(
     segment_ID_user = rle_id(source),
-    segment_ID_static = rle_id(static),
     segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
     segment_ID_tmode = rle_id(tmode_manual),
-    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_static) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
+    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
   )
 
-
-#unique(sabi$segment_ID_both) %>% length()
-
-sabi_segmentized %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
-
-#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
 
 # Add duration per segment
 sabi_segmentized <- sabi_segmentized %>%
@@ -798,31 +628,41 @@ sabi_segmentized <- sabi_segmentized %>%
   mutate(duration_min = as.integer(difftime(max(datetime), min(datetime), "mins")))
 
 
-# GROUP BY SEGMENTS
-sabi_grouped <- sabi_segmentized %>%
-  group_by(segment_ID_both, source, tmode_manual, duration_min, region, static) %>%
-  # remove static segments
-  filter(static == FALSE) %>%
-  #remove the too small segments (duration < 1 min?)
-  filter(duration_min >= 1)
+#specify temporal window
+#60 seconds ?
+#/!\ ordered and by user
+#mvmt_data <- mvmt_data %>% arrange(desc(datetime))
 
-# # SUMMARIZE
-# sabi_summarized <- sabi_grouped %>%
-#   summarize(step_mean = mean(steplength_m), speed_ms_mean = mean(speed_ms) ,lst_geometry = list(geometry))
-# 
-# # we should use roll mean ? (zoo library) (ex.2 task5)
-# check_pkg("zoo")
-# 
-# sabi_grouped %>%
-#   group_by(segment_ID_both) %>% 
-#   mutate(
-#     mean_speed = rollmean(speed_ms, k=3, fill = NA, align = "left")
-#   ) %>% View()
+
+#meanstep
+sabi_segmentized <- sabi_segmentized |>
+  group_by(segment_ID_both) %>%
+    mutate(
+      nMinus5 = sqrt((lag(E, 5) - E)^2 + (lag(N, 5) - N)^2),
+      nMinus4 = sqrt((lag(E, 4) - E)^2 + (lag(N, 4) - N)^2), 
+      nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30s
+      nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20s
+      nMinus1 = sqrt((lag(E, 1) - E)^2 + (lag(N, 1) - N)^2), #dist to pos -10 sec
+      nPlus1  = sqrt((E - lead(E, 1))^2 + (N - lead(N, 1))^2), #dist to pos +10 sec
+      nPlus2  = sqrt((E - lead(E, 2))^2 + (N - lead(N, 2))^2), #dist to pos +20 sec
+      nPlus3  = sqrt((E - lead(E, 3))^2 + (N - lead(N, 3))^2), #dist to pos +30 sec
+      nPlus4  = sqrt((E - lead(E, 4))^2 + (N - lead(N, 4))^2), #dist to pos +30 sec
+      nPlus5  = sqrt((E - lead(E, 5))^2 + (N - lead(N, 5))^2), #dist to pos +30 sec
+    )
+sabi_segmentized <- sabi_segmentized |>
+    rowwise() |>
+    mutate(
+        stepMean_smallw = round(mean(c(nMinus1, nPlus1)),2),
+        stepMean_midw = round(mean(c(nMinus3, nMinus2, nMinus1, nPlus1, nPlus2, nPlus3)),2),
+        stepMean_bigw = round(mean(c(nMinus5, nMinus4, nMinus3, nMinus2, nMinus1, nPlus1, nPlus2, nPlus3, nPlus4, nPlus5)),2)
+    ) |>
+    ungroup()
+
 
 
 # MAP VISUALISATION
-n_segs <- sabi_grouped$segment_ID_both %>% unique() %>% length()
-sabi_wgs <- sabi_grouped %>% st_transform(crs = 4326)
+n_segs <- sabi_segmentized$segment_ID_both %>% unique() %>% length()
+sabi_wgs <- sabi_segmentized %>% st_transform(crs = 4326)
 
 set.seed(2)
 factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
@@ -844,76 +684,146 @@ m <- leaflet() %>%
 
 # Plot the leaflet object m
 m
+```
 
-# ggplot(sabi, aes(E, N, color = segment_ID)) +
-#   geom_point() +
-#   geom_path() +
-#   coord_equal() +
-#   theme(legend.position = "none") +
-#   labs(subtitle = "All segments (uncleaned)")
+3) Add statics info
+
+```{r}
+#determine static points: choose an average distance to use as the threshold
+
+sabi_add_static <- sabi_segmentized |>
+  group_by(segment_ID_both) %>%
+  #ungroup() |>
+  mutate(
+    #stepMean = ifelse(is.na(stepMean), 500, stepMean), # first and last points of window
+    static = 
+           #timelag < 5.0
+           #(timelag_mean > 1.0 | timelag_mean < -1.0) 
+           #timelag_mean != 0.0 | 
+           #is.na(timelag_mean)
+         #&
+           #speed_ms_mean < 0.02 & speed_ms_mean > -0.02
+           #stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE),
+           stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE),
+          #stepMean < mean(steplength_m, na.rm=TRUE),
+           #steplength_m < 1.0
+           #mean(steplength_m, na.rm = TRUE)
+           )
+
+
+#sabi %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
+
+
+
+
+#Visualisation of static / non static:
+sabi_filter_static <- sabi_add_static |> filter(static)
+sabi_filter_non <- sabi_add_static |> filter(!static)
+
+sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
+sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = sabi_filter_non_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste(
+                     "step_mean: ", sabi_filter_non_wgs$stepMean,
+                     " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
+                     " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
+                     " timelag: ", sabi_filter_non_wgs$timelag,
+                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
+                     " source: ", sabi_filter_non_wgs$source
+                     ),
+                   color = 'blue') %>%
+  addCircleMarkers(data = sabi_filter_static_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste(
+                     "step_mean: ", sabi_filter_static_wgs$stepMean,
+                     " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
+                     " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
+                     " timelag: ", sabi_filter_static_wgs$timelag,
+                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2),
+                     " source: ", sabi_filter_static_wgs$source
+                     ),
+                   color = 'red') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('non static', 'static'),
+            title = 'static vs non static')
+
+# Plot the leaflet object m
+m
+
+# sabi_filter_non |>
+#     ggplot(aes(E, N)) +
+#     geom_path() +
+#     geom_point() +
+#     coord_fixed() +
+#     theme(legend.position = "bottom")
 
 ```
 
-TODO: create nice linestring for the grouped segments
-<!-- ```{r} -->
-<!-- # GROUP BY SEGMENTS -->
-<!-- #TODO: create nice linestring -->
+4) Remove statics and too small segments
 
-<!-- #to see how many points in a linestring: -->
-<!-- test2$geometry[12] %>% npts() -->
-<!-- test2filter <- test2 %>% filter(npts(geometry) > 1) -->
-<!-- ggplot() + geom_sf(data=test2, aes(color=as.factor(segment_ID_both))) -->
+```{r}
 
-<!-- test2 <- sabi %>%  -->
-<!--   group_by(segment_ID_both) %>%  -->
-<!--   dplyr::summarize(do_union=FALSE) %>%  # do_union=FALSE doesn't work as well -->
-<!--   st_cast("LINESTRING")  -->
+#sabi_add_static %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
 
-<!-- # GROUP BY SEGMENT -->
-<!-- test <- sabi %>% -->
-<!--   group_by(segment_ID_both, source, tmode_manual, region, static) %>%  -->
-<!--   summarize(step_mean = mean(steplength_m), speed_ms_mean = mean(speed_ms) ,lst_geometry = list(geometry)) %>% -->
-<!--   filter(st_geometry_type(geometry) == "MULTIPOINT") %>% -->
-<!--   mutate(geometry = sf::st_cast(geometry, "LINESTRING")) -->
-
-<!-- test %>% View() -->
-
-<!-- #st_geometry_type(test$geometry) == "MULTIPOINT" -->
-<!-- #  -->
-<!-- # mutate( -->
-<!-- #     geometry = case_when( -->
-<!-- #       st_geometry_type(geometry) == "MULTIPOINT" ~ sf::st_cast(geometry, "LINESTRING"), -->
-<!-- #       st_geometry_type(geometry) == "POINT" ~ NA #we should drop the points bc too small anyway -->
-<!-- #     ) -->
-<!-- #   ) %>% -->
+#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
 
 
-<!-- # VISUALISATION -->
-<!-- n_segs <- test$segment_ID_both %>% unique() %>% length() -->
-<!-- test_wgs <- test %>% st_transform(crs = 4326) -->
+# filter static and small segments
+sabi_filtered <- sabi_add_static %>%
+  group_by(segment_ID_both, source, tmode_manual, duration_min, region, static) %>%
+  # remove static segments
+  filter(static == FALSE) %>%
+  #remove the too small segments (duration < 1 min?)
+  filter(duration_min > 1)
 
-<!-- set.seed(2) -->
-<!-- factpal <- colorFactor(sample(rainbow(n_segs)), domain =test_wgs$segment_ID_both) -->
 
-<!-- m <- leaflet() %>% -->
-<!--   #addTiles() %>%  # Add default OpenStreetMap map tiles -->
-<!--   addProviderTiles("Esri.WorldGrayCanvas") %>% -->
-<!--   addPolylines(data = test_wgs, -->
-<!--                    #opacity = 0.3, -->
-<!--                    #radius = 0.2, -->
-<!--                    popup = paste("seg_ID: ", test_wgs$segment_ID_both), -->
-<!--                    color = ~factpal(segment_ID_both)) %>% -->
-<!--   addLegend(position = 'topright',  -->
-<!--             #colors = c('red'),  -->
-<!--             #labels = c('static'), -->
-<!--             pal = factpal, -->
-<!--             values = test_wgs$segment_ID_both, -->
-<!--             title = 'Grouped by segments id') -->
+# MAP VISUALISATION
+n_segs <- sabi_filtered$segment_ID_both %>% unique() %>% length()
+sabi_wgs <- sabi_filtered %>% st_transform(crs = 4326)
 
-<!-- # Plot the leaflet object m -->
-<!-- m -->
+set.seed(2)
+factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
 
-<!-- ``` -->
+m <- leaflet() %>%
+  #addTiles() %>%  # Add default OpenStreetMap map tiles
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = sabi_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste("seg_ID: ", sabi_wgs$segment_ID_both),
+                   color = ~factpal(segment_ID_both)) %>%
+  addLegend(position = 'topright', 
+            #colors = c('red'), 
+            #labels = c('static'),
+            pal = factpal,
+            values = sabi_wgs$segment_ID_both,
+            title = 'Segments - filtered statics and small')
+
+# Plot the leaflet object m
+m
+```
+
+5) Compute trajectories derivatives for each segment
+
+```{r}
+# SUMMARIZE
+sabi_summarized <- sabi_filtered %>%
+  summarize(
+    stepMean_midw_mean = mean(stepMean_midw), 
+    steplength_mean = mean(steplength_m), 
+    speed_ms_mean = mean(speed_ms), 
+    lst_geometry = list(geometry))
+sabi_summarized %>% View()
+
+```
+
 
 
 #### Annotate trajectories with environment datasets
