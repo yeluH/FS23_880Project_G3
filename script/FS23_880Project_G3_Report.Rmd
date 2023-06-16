@@ -302,6 +302,13 @@ gps_data <- gps_data %>% mutate(Datetime = Datetime %>% with_tz(tzone = "Europe/
 
 gps_data$source <- "gps"
 
+
+# Extract E and N values
+coords <- gps_data |> st_coordinates()
+gps_data <- gps_data |> 
+  mutate(Latitude =  coords[,2], Longitude = coords[,1])
+
+
 # Rename columns
 colnames(gps_data)[11] <- "datetime"
 colnames(gps_data)[3] <- "N"
@@ -581,16 +588,10 @@ mvmt_data <- mvmt_data |>
     ) |>
     ungroup()
 
-#-> timelag = 0 -> ok perfect
+#-> if timelag = 0 -> it means there was a record every 10 sec, which is good.
 
 
 summary(mvmt_data$stepMean)
-
-ggplot(mvmt_data, aes(stepMean)) +
-  geom_histogram(binwidth = 1) +
-  geom_vline(xintercept = mean(mvmt_data$stepMean, na.rm = TRUE))
-
-
 ```
 
 ```{r}
@@ -598,7 +599,7 @@ ggplot(mvmt_data, aes(stepMean)) +
 
 #try on a sampled data
 filter <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-04-21") %>%
+  filter(as.Date(datetime) == "2023-04-25") %>%
   filter(is.na(tmode_manual) == FALSE)
 filter
 
@@ -631,7 +632,8 @@ m <- leaflet() %>%
                      " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
                      " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
                      " timelag: ", sabi_filter_non_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2)
+                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
+                     " source: ", sabi_filter_non_wgs$source
                      ),
                    color = 'blue') %>%
   addCircleMarkers(data = sabi_filter_static_wgs,
@@ -642,7 +644,8 @@ m <- leaflet() %>%
                      " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
                      " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
                      " timelag: ", sabi_filter_static_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2)
+                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2),
+                     " source: ", sabi_filter_static_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
@@ -699,7 +702,8 @@ set.seed(2)
 factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
 
 m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
+  #addTiles() %>%  # Add default OpenStreetMap map tiles
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
   addCircleMarkers(data = sabi_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
