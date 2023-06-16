@@ -131,10 +131,8 @@ posmo <- posmo %>%
 #Extract values from rasters:
 #https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
 
-# On martine's laptop
+# On both laptop
 dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
-# On yelu's laptop
-#dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
 
 rasValue <- extract(dhm25, posmo)
 posmo$H <- rasValue
@@ -478,17 +476,10 @@ Here we will compute all necessary values to determine mean of transport:
 - (elevation speed?)
 - ...
 - region (mainly for visualisation)
-
--> PROBABLY THIS SECTION TO DROP.  
-Because we will do it per segment, and not for individuals.  
+ 
 ```{r}
-#compute new values
-#/!\ probably have to do it by group by like in exercice 2:
-# wildschwein_BE <- wildschwein_BE %>%
-#   group_by(TierName) %>%
-#   mutate(diff_s = as.numeric(difftime(lead(DatetimeUTC), DatetimeUTC)))
+#compute trajectory derivatives
 
-#timelag
 mvmt_data <- 
   mvmt_data %>%
   group_by(source) %>%
@@ -532,20 +523,8 @@ mvmt_data <- mvmt_data |>
 /!\ we could use the static points for means of transport.
 ...
 
-1) 
-- Specify a temporal window 
-- calculate average distance within the temporal window
-- determine static points: choose an average distance to use as the threshold
-- segmentize according to the threshold
-- filter subtrajectories (length too small in time or distance for ex.)
-
-- assign label to segment
-
-
 posmo sampling rate: 10 sec
-average distance to consider as static: ? slowest mean of transport is walk -> 5m?
-segmentize per mean of transport?  
-how to deal with tram or bus stop that we want to keep as an indicator? n° of stop in trajectory? merge the subtrajectories together?
+GPS sampling rate: 5 sec
 
 
 0) SAMPLE DATA FOR TRYING IT OUT
