@@ -37,6 +37,7 @@ check_pkg <- function(x)
 }
 
 # Call check_pkg() to install/load the required packages. 
+check_pkg("here")
 check_pkg("sf")
 check_pkg("readr") 
 check_pkg("ggplot2")
@@ -46,6 +47,13 @@ check_pkg("raster")
 check_pkg("leaflet")
 #https://github.com/benmarwick/wordcountaddin
 #check_pkg("wordcountaddin") -> ma: does not work on my computer :(
+
+
+#DATA FOLDER
+#On Martine laptop:
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/script/data"
+#On Yelu laptop:
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -91,12 +99,10 @@ Labels list: boat, train, etc.
 #import and convert to sf object
 
 # working on Matine's laptop
-# posmo <- read_csv("./data/posmo_2023-06-14_2.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, 
-#                                                                remove = FALSE) |> st_transform(2056)
+posmo <- read_csv(here(data_folder, "posmo_2023-06-14_2.csv")) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 # working on Yelu's laptop
-posmo <- read_csv("D:/GEO880/Project/posmo_2023-06-14_2.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, 
-                                                                remove = FALSE) |> st_transform(2056)
+#posmo <- read_csv(here(data_folder, "posmo_2023-06-14_2.csv")) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
 posmo$source <- "posmo"
@@ -130,9 +136,9 @@ posmo <- posmo %>%
 #https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
 
 # On martine's laptop
-# dhm25 <- raster("./data/dhm25_raster/dhm25_2056.tif")
+dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
 # On yelu's laptop
-dhm25 <- raster("D:/GEO880/Project/dhm25_raster/dhm25_2056.tif")
+#dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
 
 rasValue <- extract(dhm25, posmo)
 posmo$H <- rasValue
@@ -212,7 +218,8 @@ condition_trams <-
   posmo$datetime > as.POSIXct("2023-06-09 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 13:54:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-06 11:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:23:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-05 18:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 19:03:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-06-05 23:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-06-05 23:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:57:00", tz = "Europe/Zurich")
 
 condition_bus <- 
   posmo$datetime > as.POSIXct("2023-06-09 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:31:00", tz = "Europe/Zurich") |
@@ -223,7 +230,9 @@ condition_bus <-
   posmo$datetime > as.POSIXct("2023-06-06 21:03:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 21:17:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-06 08:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:25:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-06 08:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:35:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-06-05 18:37:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 18:46:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-06-05 18:37:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 18:46:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-25 11:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 11:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-25 16:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 16:39:00", tz = "Europe/Zurich") 
 
 condition_walks <- 
   posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich") | 
@@ -240,7 +249,9 @@ condition_walks <-
   posmo$datetime > as.POSIXct("2023-06-06 08:11:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:15:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:57:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 09:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-25 11:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 12:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-25 15:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") 
 
 condition_cars <- 
   posmo$datetime > as.POSIXct("2023-06-11 15:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 17:00:00", tz = "Europe/Zurich") | 
@@ -276,7 +287,11 @@ posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", 
 - clean GPS data and have basic common columns attributes
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
-gps_data_raw <- read_delim("D:/GEO880/Project/yelu_dataset_0609.csv", ";")
+# Yelu laptop
+#gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_0609.csv"), ";")
+
+#Martine Laptop
+gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_0609.csv"), ";")
 
 ## Use right coordinate system and preserve original E/N columns
 gps_data_raw <- st_as_sf(gps_data_raw, coords = c("Longitude", "Latitude"), crs = 4326, remove = FALSE)
@@ -349,6 +364,7 @@ mvmt_data <- rbind(posmo, gps_data)
 col_order <- c("source", "datetime", "tmode_manual" ,"E", "N", "H", "geometry")
 mvmt_data <- mvmt_data[, col_order]
 mvmt_data
+
 ```
 
 #### Overview of Posmo and GPS tracker datasets:
@@ -375,6 +391,46 @@ m
 
 
 ```
+
+Map general overview - labelized segments:  
+```{r}
+#map overview
+mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326) %>% filter(is.na(tmode_manual) == FALSE)
+
+
+
+# check overlapping days of labelized data
+# mvmt_data_wgs %>% 
+#   mutate(
+#     day = format(as.POSIXct(datetime), format = "%Y-%m-%d")) %>%
+#   group_by(day, source) %>% 
+#   summarize(n()) %>% View()
+
+
+#Palette
+factpal <- colorFactor(topo.colors(2), domain =mvmt_data_wgs$source)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = mvmt_data_wgs,
+                   #opacity = 0.3, 
+                   radius = 0.2,
+                   popup = mvmt_data_wgs$datetime,
+                   color = ~factpal(source)) %>%
+                   #color = 'blue') %>%
+  addLegend(position = 'topright', 
+            #colors = c('blue'), 
+            #labels = c('points'),
+            pal = factpal,
+            values = mvmt_data_wgs$source,
+            title = 'Labelized points from GPS tracker and posmo')
+
+# Plot the leaflet object m
+m
+
+
+```
+
 
 
 Map general overview - posmo user:  
@@ -542,7 +598,7 @@ ggplot(mvmt_data, aes(stepMean)) +
 
 #try on a sampled data
 filter <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-04-25") %>%
+  filter(as.Date(datetime) == "2023-04-21") %>%
   filter(is.na(tmode_manual) == FALSE)
 filter
 
@@ -626,6 +682,13 @@ sabi <- sabi %>%
 #unique(sabi$segment_ID_both) %>% length()
 
 #sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
+
+
+# GROUP BY SEGMENT
+sabi %>%
+  group_by(source, segment_ID_both) %>% summarize() %>% View()
+
+
 
 
 # VISUALISATION
