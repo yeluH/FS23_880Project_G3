@@ -632,7 +632,7 @@ SAMPLE DATA FOR TRYING IT OUT
 ```{r}
 #try on a sampled data
 filter <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-04-25") %>%
+  filter(as.Date(datetime) == "2023-05-29") %>%
   filter(is.na(tmode_manual) == FALSE)
 filter
 ```
@@ -642,14 +642,14 @@ RECORDING STOPPED
 
 ```{r}
 #determine static points: choose an average distance to use as the threshold
-sabi <- filter |>
+sabi_gap <- filter |>
   ungroup() |>
-  mutate(static = timelag > 30)
+  mutate(gap = timelag > 30)
 
 
 #Visualisation of static / non static:
-sabi_filter_static <- sabi |> filter(static)
-sabi_filter_non <- sabi |> filter(!static)
+sabi_filter_static <- sabi_gap |> filter(gap)
+sabi_filter_non <- sabi_gap |> filter(!gap)
 
 sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
 sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
@@ -703,7 +703,7 @@ STATIC / NON STATIC
 #determine static points: choose an average distance to use as the threshold
 
 #try on a sampled data
-sabi <- filter |>
+sabi <- sabi_gap |>
   ungroup() |>
   mutate(static = 
            #timelag < 5.0
@@ -782,14 +782,15 @@ sabi_segmentized <- sabi %>%
   mutate(
     segment_ID_user = rle_id(source),
     segment_ID_static = rle_id(static),
+    segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
     segment_ID_tmode = rle_id(tmode_manual),
-    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_static) * as.numeric(segment_ID_tmode),
+    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_static) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
   )
 
 
 #unique(sabi$segment_ID_both) %>% length()
 
-#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
+sabi_segmentized %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
 
 #sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
 
@@ -933,13 +934,13 @@ Summary all segments from the mean of transport:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
 
 knitr::kable(tmode_count %>% st_drop_geometry(),
-caption = "Number of segments labelized per mode of transport")
+caption = "Number of points labelized per mode of transport")
 ```
 
 ```{r}
 #maps per mean of transport?:
 
-mvmt_data_filter <- mvmt_data %>% filter(tmode_manual == "walk") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
+mvmt_data_filter <- mvmt_data %>% filter(tmode_manual == "boat") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
 
 mvmt_data_filter_wgs <- mvmt_data_filter %>% st_transform(crs = 4326)
 
