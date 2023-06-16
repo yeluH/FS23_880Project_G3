@@ -461,6 +461,9 @@ Here we will compute all necessary values to determine mean of transport:
 - (elevation speed?)
 - ...
 - region (mainly for visualisation)
+
+-> PROBABLY THIS SECTION TO DROP.  
+Because we will do it per segment, and not for individuals.  
 ```{r}
 #compute new values
 #/!\ probably have to do it by group by like in exercice 2:
@@ -533,9 +536,12 @@ how to deal with tram or bus stop that we want to keep as an indicator? n° of s
 #specify temporal window
 #60 seconds ?
 #/!\ ordered and by user
+#mvmt_data <- mvmt_data %>% arrange(desc(datetime))
+
 
 #meanstep
 mvmt_data <- mvmt_data |>
+  group_by(source) %>%
     mutate(
       nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30s
       nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20s
@@ -553,6 +559,7 @@ mvmt_data <- mvmt_data |>
 
 #mean timelag
 mvmt_data <- mvmt_data |>
+  group_by(source) %>%
     mutate(
       nMinus3t = as.numeric(difftime(lag(datetime, 3), datetime)), #dist to pos -30s
       nMinus2t = as.numeric(difftime(lag(datetime, 2), datetime)), #dist to pos -20s
@@ -571,6 +578,7 @@ mvmt_data <- mvmt_data |>
 
 #mean speed
 mvmt_data <- mvmt_data |>
+  group_by(source) %>%
     mutate(
       nMinus3s = nMinus3/nMinus3t, #dist to pos -30s
       nMinus2s = nMinus2/nMinus2t, #dist to pos -20s
@@ -674,24 +682,23 @@ rle_id <- function(vec) {
     as.factor(rep(seq_along(x), times = x))
 }
 
+# Add user id so we are also sure that the segments are separated by user
+#TODO: maybe multiplication is not the best way to build a unique id.
+
 sabi <- sabi %>%
   mutate(
+    segment_ID_user = rle_id(source),
     segment_ID_static = rle_id(static),
     segment_ID_tmode = rle_id(tmode_manual),
-    segment_ID_both = as.numeric(segment_ID_static) * as.numeric(segment_ID_tmode)
+    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_static) * as.numeric(segment_ID_tmode)
   )
 
 
 #unique(sabi$segment_ID_both) %>% length()
 
+#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
+
 #sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
-
-
-# GROUP BY SEGMENT
-sabi %>%
-  group_by(source, segment_ID_both) %>% summarize() %>% View()
-
-
 
 
 # VISUALISATION
@@ -728,7 +735,75 @@ m
 #   labs(subtitle = "All segments (uncleaned)")
 
 
+# GROUP BY SEGMENTS
+sabi_summarized <- sabi %>%
+  group_by(segment_ID_both, source, tmode_manual, region, static) %>% 
+  summarize(step_mean = mean(steplength_m), speed_ms_mean = mean(speed_ms) ,lst_geometry = list(geometry))
+
+sabi_summarized %>% View()
+
 ```
+
+TODO: create nice linestring for the grouped segments
+<!-- ```{r} -->
+<!-- # GROUP BY SEGMENTS -->
+<!-- #TODO: create nice linestring -->
+
+<!-- #to see how many points in a linestring: -->
+<!-- test2$geometry[12] %>% npts() -->
+<!-- test2filter <- test2 %>% filter(npts(geometry) > 1) -->
+<!-- ggplot() + geom_sf(data=test2, aes(color=as.factor(segment_ID_both))) -->
+
+<!-- test2 <- sabi %>%  -->
+<!--   group_by(segment_ID_both) %>%  -->
+<!--   dplyr::summarize(do_union=FALSE) %>%  # do_union=FALSE doesn't work as well -->
+<!--   st_cast("LINESTRING")  -->
+
+<!-- # GROUP BY SEGMENT -->
+<!-- test <- sabi %>% -->
+<!--   group_by(segment_ID_both, source, tmode_manual, region, static) %>%  -->
+<!--   summarize(step_mean = mean(steplength_m), speed_ms_mean = mean(speed_ms) ,lst_geometry = list(geometry)) %>% -->
+<!--   filter(st_geometry_type(geometry) == "MULTIPOINT") %>% -->
+<!--   mutate(geometry = sf::st_cast(geometry, "LINESTRING")) -->
+
+<!-- test %>% View() -->
+
+<!-- #st_geometry_type(test$geometry) == "MULTIPOINT" -->
+<!-- #  -->
+<!-- # mutate( -->
+<!-- #     geometry = case_when( -->
+<!-- #       st_geometry_type(geometry) == "MULTIPOINT" ~ sf::st_cast(geometry, "LINESTRING"), -->
+<!-- #       st_geometry_type(geometry) == "POINT" ~ NA #we should drop the points bc too small anyway -->
+<!-- #     ) -->
+<!-- #   ) %>% -->
+
+
+<!-- # VISUALISATION -->
+<!-- n_segs <- test$segment_ID_both %>% unique() %>% length() -->
+<!-- test_wgs <- test %>% st_transform(crs = 4326) -->
+
+<!-- set.seed(2) -->
+<!-- factpal <- colorFactor(sample(rainbow(n_segs)), domain =test_wgs$segment_ID_both) -->
+
+<!-- m <- leaflet() %>% -->
+<!--   #addTiles() %>%  # Add default OpenStreetMap map tiles -->
+<!--   addProviderTiles("Esri.WorldGrayCanvas") %>% -->
+<!--   addPolylines(data = test_wgs, -->
+<!--                    #opacity = 0.3, -->
+<!--                    #radius = 0.2, -->
+<!--                    popup = paste("seg_ID: ", test_wgs$segment_ID_both), -->
+<!--                    color = ~factpal(segment_ID_both)) %>% -->
+<!--   addLegend(position = 'topright',  -->
+<!--             #colors = c('red'),  -->
+<!--             #labels = c('static'), -->
+<!--             pal = factpal, -->
+<!--             values = test_wgs$segment_ID_both, -->
+<!--             title = 'Grouped by segments id') -->
+
+<!-- # Plot the leaflet object m -->
+<!-- m -->
+
+<!-- ``` -->
 
 
 #### Annotate trajectories with environment datasets
