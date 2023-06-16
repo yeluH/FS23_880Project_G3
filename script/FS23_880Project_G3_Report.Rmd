@@ -326,12 +326,21 @@ gps_data <- dplyr::select(gps_data, c("source", "datetime", "N", "E", "H", "geom
 
 # Conditions for different travel modes
 condition_bus <- 
-  gps_data$datetime >= as.POSIXct("2023-04-21 16:18:35") & gps_data$datetime <= as.POSIXct("2023-04-21 16:23:40")
+  gps_data$datetime >= as.POSIXct("2023-04-21 16:18:35") & gps_data$datetime <= as.POSIXct("2023-04-21 16:23:40") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 18:04:25") & gps_data$datetime <= as.POSIXct("2023-04-30 18:20:15") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 19:46:20") & gps_data$datetime <= as.POSIXct("2023-04-30 19:59:25")
 
 condition_tram <- 
   gps_data$datetime >= as.POSIXct("2023-04-21 17:18:55") & gps_data$datetime <= as.POSIXct("2023-04-21 17:26:05") | 
   gps_data$datetime >= as.POSIXct("2023-04-25 15:07:50") & gps_data$datetime <= as.POSIXct("2023-04-25 15:11:55") | 
   gps_data$datetime >= as.POSIXct("2023-04-25 17:40:50") & gps_data$datetime <= as.POSIXct("2023-04-25 17:47:20") | 
+  gps_data$datetime >= as.POSIXct("2023-04-25 18:57:55") & gps_data$datetime <= as.POSIXct("2023-04-25 19:04:12") | 
+  gps_data$datetime >= as.POSIXct("2023-04-25 19:50:45") & gps_data$datetime <= as.POSIXct("2023-04-25 19:54:25") | 
+  gps_data$datetime >= as.POSIXct("2023-04-25 20:26:10") & gps_data$datetime <= as.POSIXct("2023-04-25 20:32:05") | 
+  gps_data$datetime >= as.POSIXct("2023-04-29 18:06:45") & gps_data$datetime <= as.POSIXct("2023-04-29 18:12:20") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 16:45:05") & gps_data$datetime <= as.POSIXct("2023-04-30 16:56:30") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 17:46:25") & gps_data$datetime <= as.POSIXct("2023-04-30 18:00:00") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 20:10:35") & gps_data$datetime <= as.POSIXct("2023-04-30 20:12:05") | 
   gps_data$datetime >= as.POSIXct("2023-05-29 17:40:10") & gps_data$datetime <= as.POSIXct("2023-05-29 17:59:50") | 
   gps_data$datetime >= as.POSIXct("2023-05-29 18:20:00") & gps_data$datetime <= as.POSIXct("2023-05-29 18:27:35") | 
   gps_data$datetime >= as.POSIXct("2023-05-29 18:28:35") & gps_data$datetime <= as.POSIXct("2023-05-29 18:36:00") | 
@@ -339,8 +348,12 @@ condition_tram <-
 
 condition_walk <- 
   gps_data$datetime >= as.POSIXct("2023-04-21 16:13:40") & gps_data$datetime <= as.POSIXct("2023-04-21 16:16:25") |
+  gps_data$datetime >= as.POSIXct("2023-04-25 15:13:05") & gps_data$datetime <= as.POSIXct("2023-04-25 15:18:00") |
   gps_data$datetime >= as.POSIXct("2023-04-25 15:37:00") & gps_data$datetime <= as.POSIXct("2023-04-25 15:40:15") |
-  gps_data$datetime >= as.POSIXct("2023-04-30 18:20:25") & gps_data$datetime <= as.POSIXct("2023-04-30 19:38:55") |
+  gps_data$datetime >= as.POSIXct("2023-04-25 19:05:05") & gps_data$datetime <= as.POSIXct("2023-04-25 19:08:25") |
+  gps_data$datetime >= as.POSIXct("2023-04-25 20:32:45") & gps_data$datetime <= as.POSIXct("2023-04-25 20:35:05") |
+  gps_data$datetime >= as.POSIXct("2023-04-29 21:41:45") & gps_data$datetime <= as.POSIXct("2023-04-29 22:19:40") |
+  gps_data$datetime >= as.POSIXct("2023-04-30 18:20:25") & gps_data$datetime <= as.POSIXct("2023-04-30 19:39:00") |
   gps_data$datetime >= as.POSIXct("2023-06-02 13:22:45") & gps_data$datetime <= as.POSIXct("2023-06-02 13:28:00") |
   gps_data$datetime >= as.POSIXct("2023-06-05 14:49:00") & gps_data$datetime <= as.POSIXct("2023-06-05 14:57:00") |
   gps_data$datetime >= as.POSIXct("2023-06-12 21:29:35") & gps_data$datetime <= as.POSIXct("2023-06-12 22:11:45")
@@ -355,7 +368,6 @@ condition_run <-
   gps_data$datetime >= as.POSIXct("2023-06-15 22:00:00") & gps_data$datetime <= as.POSIXct("2023-06-15 22:01:55") |
   gps_data$datetime >= as.POSIXct("2023-06-15 22:07:40") & gps_data$datetime <= as.POSIXct("2023-06-15 22:14:40") |
   gps_data$datetime >= as.POSIXct("2023-06-15 22:19:45") & gps_data$datetime <= as.POSIXct("2023-06-15 22:20:55")
-
 
 
 
