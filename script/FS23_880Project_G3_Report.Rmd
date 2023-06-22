@@ -89,16 +89,18 @@ Labels list: boat, train, etc.
 
 ## Preprocessing of trajectories data
 ### Posmo data
+- 30 March to 18 June (~169 days)
 - clean GPS data and add basic common columns attributes
 - labelize data
 - overview (here or maybe later?)
 ...
 
+
 #### Import, clean posmo data
 ```{r}
 #import and convert to sf object
 
-posmo <- read_delim(here(data_folder, "posmo_2023-06-14_2.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+posmo <- read_delim(here(data_folder, "posmo_2023-06-18.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
 posmo$source <- "posmo"
@@ -151,6 +153,8 @@ posmo$tmode_manual <- NA
 
 #select segments
 condition_boats <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
+
+condition_planes <- posmo$datetime > as.POSIXct("2023-06-17 11:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 12:22:00", tz = "Europe/Zurich")
 
 condition_cable_cars <- 
   posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich")
@@ -263,6 +267,7 @@ condition_cars <-
 posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_walks ~ 'walk',
                                   condition_boats ~ 'boat',
+                                  condition_planes ~ 'plane',
                                   condition_trains ~ 'train',
                                   condition_bikes ~ 'bike',
                                   condition_scooters ~ 'kick-scooter',
@@ -770,9 +775,9 @@ m
 sabi_filtered <- sabi_add_static %>%
   group_by(segment_ID_both, source, tmode_manual, duration_min, region, static) %>%
   # remove static segments
-  filter(static == FALSE) %>%
+  filter(static == FALSE) #%>%
   #remove the too small segments (duration < 1 min?)
-  filter(duration_min > 1)
+  #filter(duration_min > 1)
 
 
 # MAP VISUALISATION
@@ -891,7 +896,7 @@ caption = "Number of points labelized per mode of transport")
 ```{r}
 #maps per mean of transport?:
 
-mvmt_data_filter <- mvmt_data %>% filter(tmode_manual == "boat") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
+mvmt_data_filter <- mvmt_data %>% filter(tmode_manual == "plane") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
 
 mvmt_data_filter_wgs <- mvmt_data_filter %>% st_transform(crs = 4326)
 
