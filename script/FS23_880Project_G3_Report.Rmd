@@ -51,9 +51,9 @@ check_pkg("leaflet")
 
 #DATA FOLDER
 #On Martine laptop:
-#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -820,6 +820,58 @@ sabi_summarized %>% View()
 #### Annotate trajectories with environment datasets
 - datasets descriptions
 - annotate trajectories
+
+/!\ dissolve the shapefiles first makes the calculation quickest.
+
+TODO: 
+- check buffer distance with other examples
+- calculate % per segment to attributes FALSE/TRUE to the segment
+-> add it in sabi_summarized
+
+Import the railways:  
+```{r}
+#mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
+#extract <- mvmt_data[1:100,]
+extract <- mvmt_data %>% filter(tmode_manual == "train")
+rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
+
+joined_data <- extract %>% 
+  st_join(rails_shp, join = st_is_within_distance, 20)
+
+extract$isClosetoRails <- !is.na(joined_data$xtf_id)
+
+
+
+
+#Visualisation of proximity:
+filter_true <- extract |> filter(isClosetoRails) %>% st_transform(crs = 4326)
+filter_false <- extract |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = filter_false,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ", filter_false$tmode_manual
+                     ),
+                   color = 'red') %>%
+  addCircleMarkers(data = filter_true,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ", filter_true$tmode_manual
+                     ),
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('close', 'not close'),
+            title = 'Proximity to environment')
+
+# Plot the leaflet object m
+m
+
+
+```
+
 
 ### Summarize characteristics of the means of transport
 - Compute mean variables per segment (ex.2 task 5 (rolling windows))
