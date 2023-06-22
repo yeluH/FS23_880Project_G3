@@ -548,8 +548,8 @@ GPS sampling rate: 5 sec
 ```{r}
 #try on a sampled data
 sabi <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-05-29")
-  #filter(tmode_manual == "boat")
+  #filter(as.Date(datetime) == "2023-05-04")
+  filter(tmode_manual == "train")
 sabi
 ```
 
@@ -614,14 +614,15 @@ sabi_segmentized <- sabi_gap %>%
     segment_ID_user = rle_id(source),
     segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
     segment_ID_tmode = rle_id(tmode_manual),
-    segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
+    segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
+    #segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
   )
 
 
 # Add duration per segment
 sabi_segmentized <- sabi_segmentized %>%
   group_by(segment_ID_both) %>%
-  mutate(duration_min = as.integer(difftime(max(datetime), min(datetime), "mins")))
+  mutate(duration_mins = as.integer(difftime(max(datetime), min(datetime), units = "mins")))
 
 
 #specify temporal window
@@ -676,7 +677,7 @@ m <- leaflet() %>%
             #labels = c('static'),
             pal = factpal,
             values = sabi_wgs$segment_ID_both,
-            title = 'static vs non static')
+            title = 'Segments')
 
 # Plot the leaflet object m
 m
@@ -704,6 +705,7 @@ sabi_add_static <- sabi_segmentized |>
           #stepMean < mean(steplength_m, na.rm=TRUE),
            #steplength_m < 1.0
            #mean(steplength_m, na.rm = TRUE)
+    static =  ifelse(is.na(static), FALSE, static)
            )
 
 
@@ -773,11 +775,12 @@ m
 
 # filter static and small segments
 sabi_filtered <- sabi_add_static %>%
-  group_by(segment_ID_both, source, tmode_manual, duration_min, region, static) %>%
+  group_by(segment_ID_both, source, tmode_manual, duration_mins, static) %>%
   # remove static segments
-  filter(static == FALSE) #%>%
+  filter(static == FALSE) %>%
   #remove the too small segments (duration < 1 min?)
-  #filter(duration_min > 1)
+  filter(duration_mins > 1)
+# we should also filter segments with less than ~5 points (?)
 
 
 # MAP VISUALISATION
@@ -812,7 +815,7 @@ m
 # SUMMARIZE
 sabi_summarized <- sabi_filtered %>%
   summarize(
-    stepMean_midw_mean = mean(stepMean_midw), 
+    stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
     steplength_mean = mean(steplength_m), 
     speed_ms_mean = mean(speed_ms), 
     lst_geometry = list(geometry))
@@ -828,42 +831,73 @@ sabi_summarized %>% View()
 
 /!\ dissolve the shapefiles first makes the calculation quickest.
 
-TODO: 
+done: 
 - check buffer distance with other examples
 - calculate % per segment to attributes FALSE/TRUE to the segment
 -> add it in sabi_summarized
+
+TODO:
+-> to check with all data not only an extract
+
+Q: -> faire convex-hull autour des points pour couper les datasets et limiter le tps de calcul? (sur R)
+
+
+
+Buffers: should be big enough to get the stations (not all rails are mapped) (30m)
+Overlapp % 30m -> 70%
 
 Import the railways:  
 ```{r}
 #mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
 #extract <- mvmt_data[1:100,]
-extract <- mvmt_data %>% filter(tmode_manual == "train")
+extract <- sabi_filtered %>% filter(tmode_manual == "train")
 rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 
 joined_data <- extract %>% 
-  st_join(rails_shp, join = st_is_within_distance, 20)
+  st_join(rails_shp, join = st_is_within_distance, 30)
 
 extract$isClosetoRails <- !is.na(joined_data$xtf_id)
 
+# SUMMARIZE
+extract_summarized <- extract %>%
+  summarize(
+    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
+    stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
+    steplength_mean = mean(steplength_m), 
+    speed_ms_mean = mean(speed_ms), 
+    lst_geometry = list(geometry))
+extract_summarized %>% View()
 
+#filter extract
+lst_extract <- c("1-60-1", #huge gap to filter out.
+"1-99-1") #<- Olten, not all rails of the stations are represented.
 
+extract_f <- extract #%>% filter(segment_ID_both %in% lst_extract)
 
 #Visualisation of proximity:
-filter_true <- extract |> filter(isClosetoRails) %>% st_transform(crs = 4326)
-filter_false <- extract |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+filter_true <- extract_f |> filter(isClosetoRails) %>% st_transform(crs = 4326)
+filter_false <- extract_f |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+
+rails_wgs <- rails_shp %>% st_transform(crs = 4326)
+
+
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
+  addPolylines(
+    data = rails_wgs,
+    color = 'green'
+  ) %>%
   addCircleMarkers(data = filter_false,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", filter_false$tmode_manual
+                     "tmode: ", filter_false$tmode_manual, ". ID: ", filter_false$segment_ID_both
                      ),
                    color = 'red') %>%
   addCircleMarkers(data = filter_true,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", filter_true$tmode_manual
+                     "tmode: ",  filter_true$tmode_manual, ". ID: ", filter_false$segment_ID_both
                      ),
                    color = 'blue') %>%
   addLegend(position = 'topright', 
