@@ -22,7 +22,7 @@ library("leaflet")
 ### Clean posmo
 ```{r}
 #import and convert to sf object
-posmo <- read_csv("data/posmo_2023-06-14_2.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+posmo <- read_csv("data/posmo_2023-06-18.csv") %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 #clean and add columns
 posmo$source <- "posmo"
@@ -260,6 +260,24 @@ ggplot(posmo_boats, aes(E,N, color = datetime)) +
   geom_path() +
   coord_equal() #so equally space North and East
 ```
+
+## Plane
+```{r}
+condition_planes <- posmo$datetime > as.POSIXct("2023-06-17 11:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 12:22:00", tz = "Europe/Zurich")
+
+posmo <- posmo %>%
+  mutate(tmode_manual = case_when(condition_planes ~ 'plane'))
+
+# Visualisation of all labelized tmode datasets
+posmo_planes <- posmo %>% filter(tmode_manual == "plane")
+
+#plot trajectories
+ggplot(posmo_planes, aes(E,N, color = datetime)) +
+  geom_point() +
+  geom_path() +
+  coord_equal() #so equally space North and East
+```
+
 
 ## Ski
 -15.04, 
@@ -615,7 +633,7 @@ ggplot(posmo_cars, aes(E,N, color = datetime)) +
 
 #tram
 posmo_test <- posmo |>
-  filter(posmo$datetime > as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:57:00", tz = "Europe/Zurich"))
+  filter(posmo$datetime > as.POSIXct("2023-06-17 11:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 12:22:00", tz = "Europe/Zurich"))
 posmo_test
 
 
