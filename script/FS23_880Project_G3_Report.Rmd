@@ -506,6 +506,9 @@ mvmt_data <-
     speed_ms = steplength_m/timelag,
     slope = (lead(H) - H)/steplength_m * 100
     )
+
+#remove timelag 0 -> recording errors
+mvmt_data <- mvmt_data %>% filter(timelag != 0)
 ```
 
 
@@ -544,50 +547,51 @@ posmo sampling rate: 10 sec
 GPS sampling rate: 5 sec
 
 
-0) SAMPLE DATA FOR TRYING IT OUT
+0) SAMPLE DATA FOR TRYING IT OUT  
+Point to drop when we are done with the tests.  
 ```{r}
 #try on a sampled data
-sabi <- mvmt_data |>
-  #filter(as.Date(datetime) == "2023-05-04")
-  filter(tmode_manual == "train")
-sabi
+mvmt_data2 <- mvmt_data |>
+  filter(as.Date(datetime) == "2023-05-04")
+  #filter(tmode_manual == "train")
+mvmt_data2
 ```
 
 
-1) Remove gaps in recording
+1) Detect gaps in recording
 
 ```{r}
 #determine static points: choose an average distance to use as the threshold
-sabi_gap <- sabi |>
+mvmt_data_gap <- mvmt_data2 |>
   ungroup() |>
   mutate(gap = timelag > 30)
 
 
-#Visualisation of static / non static:
-sabi_filter_gap <- sabi_gap |> filter(gap)
-sabi_filter_non <- sabi_gap |> filter(!gap)
+#Visualisation of gap / no gap
+mvmt_data_filter_gap <- mvmt_data_gap |> filter(gap)
+mvmt_data_filter_non <- mvmt_data_gap |> filter(!gap)
 
-sabi_filter_gap_wgs <- sabi_filter_gap %>% st_transform(crs = 4326)
-sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
+mvmt_data_filter_gap_wgs <- mvmt_data_filter_gap %>% st_transform(crs = 4326)
+mvmt_data_filter_non_wgs <- mvmt_data_filter_non%>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = sabi_filter_non_wgs,
+  addCircleMarkers(data = mvmt_data_filter_non_wgs,
                    radius = 0.2,
                    popup = paste(
-                     " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_non_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
-                     " source: ", sabi_filter_non_wgs$source
+                     " steplength: ", round(mvmt_data_filter_non_wgs$steplength_m,2),
+                     " timelag: ", mvmt_data_filter_non_wgs$timelag,
+                     " speed_ms: ", round(mvmt_data_filter_non_wgs$speed_ms,2),
+                     " source: ", mvmt_data_filter_non_wgs$source
                      ),
                    color = 'blue') %>%
-  addCircleMarkers(data = sabi_filter_gap_wgs,
+  addCircleMarkers(data = mvmt_data_filter_gap_wgs,
                    radius = 0.2,
                    popup = paste(
-                     " steplength: ", round(sabi_filter_gap_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_gap_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_gap_wgs$speed_ms,2),
-                     " source: ", sabi_filter_gap_wgs$source
+                     " steplength: ", round(mvmt_data_filter_gap_wgs$steplength_m,2),
+                     " timelag: ", mvmt_data_filter_gap_wgs$timelag,
+                     " speed_ms: ", round(mvmt_data_filter_gap_wgs$speed_ms,2),
+                     " source: ", mvmt_data_filter_gap_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
@@ -600,7 +604,7 @@ m
 ```
 
 
-2) Segmentation per user and transport mode  
+2) Segmentation per gap, user and transport mode  
 
 ```{r}
 #function source: Exercice3
@@ -609,18 +613,41 @@ rle_id <- function(vec) {
     as.factor(rep(seq_along(x), times = x))
 }
 
-sabi_segmentized <- sabi_gap %>%
+mvmt_data_segmentized <- mvmt_data_gap %>%
   mutate(
     segment_ID_user = rle_id(source),
-    segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
-    segment_ID_tmode = rle_id(tmode_manual),
+    segment_ID_gap = 1, #to split segments when recording gap in it
+    segment_ID_tmode = rle_id(tmode_manual)
+  )
+
+#increment segment_ID_gap for each TRUE
+for (i in 2:nrow(mvmt_data_segmentized)) {
+  if (mvmt_data_segmentized$gap[i-1] == TRUE) {
+    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1] + 1
+  } else {
+    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1]
+  }
+}
+
+# ADD FINAL ID for segmentation
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
+  mutate(
     segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
-    #segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
   )
 
 
+# mvmt_data_segmentized <- mvmt_data_gap %>%
+#   mutate(
+#     segment_ID_user = rle_id(source),
+#     segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
+#     segment_ID_tmode = rle_id(tmode_manual),
+#     segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
+#     #segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
+#   )
+
+
 # Add duration per segment
-sabi_segmentized <- sabi_segmentized %>%
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
   mutate(duration_mins = as.integer(difftime(max(datetime), min(datetime), units = "mins")))
 
@@ -632,7 +659,7 @@ sabi_segmentized <- sabi_segmentized %>%
 
 
 #meanstep
-sabi_segmentized <- sabi_segmentized |>
+mvmt_data_segmentized <- mvmt_data_segmentized |>
   group_by(segment_ID_both) %>%
     mutate(
       nMinus5 = sqrt((lag(E, 5) - E)^2 + (lag(N, 5) - N)^2),
@@ -646,7 +673,7 @@ sabi_segmentized <- sabi_segmentized |>
       nPlus4  = sqrt((E - lead(E, 4))^2 + (N - lead(N, 4))^2), #dist to pos +30 sec
       nPlus5  = sqrt((E - lead(E, 5))^2 + (N - lead(N, 5))^2), #dist to pos +30 sec
     )
-sabi_segmentized <- sabi_segmentized |>
+mvmt_data_segmentized <- mvmt_data_segmentized |>
     rowwise() |>
     mutate(
         stepMean_smallw = round(mean(c(nMinus1, nPlus1)),2),
@@ -658,25 +685,25 @@ sabi_segmentized <- sabi_segmentized |>
 
 
 # MAP VISUALISATION
-n_segs <- sabi_segmentized$segment_ID_both %>% unique() %>% length()
-sabi_wgs <- sabi_segmentized %>% st_transform(crs = 4326)
+n_segs <- mvmt_data_segmentized$segment_ID_both %>% unique() %>% length()
+mvmt_data_wgs <- mvmt_data_segmentized %>% st_transform(crs = 4326)
 
 set.seed(2)
-factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
+factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
 
 m <- leaflet() %>%
   #addTiles() %>%  # Add default OpenStreetMap map tiles
   addProviderTiles("Esri.WorldGrayCanvas") %>%
-  addCircleMarkers(data = sabi_wgs,
+  addCircleMarkers(data = mvmt_data_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
-                   popup = paste("seg_ID: ", sabi_wgs$segment_ID_both),
+                   popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
                    color = ~factpal(segment_ID_both)) %>%
   addLegend(position = 'topright', 
             #colors = c('red'), 
             #labels = c('static'),
             pal = factpal,
-            values = sabi_wgs$segment_ID_both,
+            values = mvmt_data_wgs$segment_ID_both,
             title = 'Segments')
 
 # Plot the leaflet object m
@@ -688,7 +715,7 @@ m
 ```{r}
 #determine static points: choose an average distance to use as the threshold
 
-sabi_add_static <- sabi_segmentized |>
+mvmt_data_add_static <- mvmt_data_segmentized |>
   group_by(segment_ID_both) %>%
   #ungroup() |>
   mutate(
@@ -709,42 +736,40 @@ sabi_add_static <- sabi_segmentized |>
            )
 
 
-#sabi %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
+#mvmt_data %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
 
 
 
 
 #Visualisation of static / non static:
-sabi_filter_static <- sabi_add_static |> filter(static)
-sabi_filter_non <- sabi_add_static |> filter(!static)
+mvmt_data_filter_static <- mvmt_data_add_static |> filter(static)
+mvmt_data_filter_non <- mvmt_data_add_static |> filter(!static)
 
-sabi_filter_static_wgs <- sabi_filter_static %>% st_transform(crs = 4326)
-sabi_filter_non_wgs <- sabi_filter_non%>% st_transform(crs = 4326)
+mvmt_data_filter_static_wgs <- mvmt_data_filter_static %>% st_transform(crs = 4326)
+mvmt_data_filter_non_wgs <- mvmt_data_filter_non%>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = sabi_filter_non_wgs,
+  addCircleMarkers(data = mvmt_data_filter_non_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", sabi_filter_non_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_non_wgs$timelag_mean,
-                     " steplength: ", round(sabi_filter_non_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_non_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_non_wgs$speed_ms,2),
-                     " source: ", sabi_filter_non_wgs$source
+                     "step_mean: ", mvmt_data_filter_non_wgs$stepMean_midw,
+                     " steplength: ", round(mvmt_data_filter_non_wgs$steplength_m,2),
+                     " timelag: ", mvmt_data_filter_non_wgs$timelag,
+                     " speed_ms: ", round(mvmt_data_filter_non_wgs$speed_ms,2),
+                     " source: ", mvmt_data_filter_non_wgs$source
                      ),
                    color = 'blue') %>%
-  addCircleMarkers(data = sabi_filter_static_wgs,
+  addCircleMarkers(data = mvmt_data_filter_static_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", sabi_filter_static_wgs$stepMean,
-                     " timelag_mean: ", sabi_filter_static_wgs$timelag_mean,
-                     " steplength: ", round(sabi_filter_static_wgs$steplength_m,2),
-                     " timelag: ", sabi_filter_static_wgs$timelag,
-                     " speed_ms: ", round(sabi_filter_static_wgs$speed_ms,2),
-                     " source: ", sabi_filter_static_wgs$source
+                     "step_mean: ", mvmt_data_filter_static_wgs$stepMean_midw,
+                     " steplength: ", round(mvmt_data_filter_static_wgs$steplength_m,2),
+                     " timelag: ", mvmt_data_filter_static_wgs$timelag,
+                     " speed_ms: ", round(mvmt_data_filter_static_wgs$speed_ms,2),
+                     " source: ", mvmt_data_filter_static_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
@@ -755,7 +780,7 @@ m <- leaflet() %>%
 # Plot the leaflet object m
 m
 
-# sabi_filter_non |>
+# mvmt_data_filter_non |>
 #     ggplot(aes(E, N)) +
 #     geom_path() +
 #     geom_point() +
@@ -768,13 +793,13 @@ m
 
 ```{r}
 
-#sabi_add_static %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
+#mvmt_data_add_static %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
 
-#sabi %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
+#mvmt_data %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
 
 
 # filter static and small segments
-sabi_filtered <- sabi_add_static %>%
+mvmt_data_filtered <- mvmt_data_add_static %>%
   group_by(segment_ID_both, source, tmode_manual, duration_mins, static) %>%
   # remove static segments
   filter(static == FALSE) %>%
@@ -784,42 +809,53 @@ sabi_filtered <- sabi_add_static %>%
 
 
 # MAP VISUALISATION
-n_segs <- sabi_filtered$segment_ID_both %>% unique() %>% length()
-sabi_wgs <- sabi_filtered %>% st_transform(crs = 4326)
+n_segs <- mvmt_data_filtered$segment_ID_both %>% unique() %>% length()
+mvmt_data_wgs <- mvmt_data_filtered %>% st_transform(crs = 4326)
 
 set.seed(2)
-factpal <- colorFactor(sample(rainbow(n_segs)), domain =sabi_wgs$segment_ID_both)
+factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
 
 m <- leaflet() %>%
   #addTiles() %>%  # Add default OpenStreetMap map tiles
   addProviderTiles("Esri.WorldGrayCanvas") %>%
-  addCircleMarkers(data = sabi_wgs,
+  addCircleMarkers(data = mvmt_data_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
-                   popup = paste("seg_ID: ", sabi_wgs$segment_ID_both),
+                   popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
                    color = ~factpal(segment_ID_both)) %>%
   addLegend(position = 'topright', 
             #colors = c('red'), 
             #labels = c('static'),
             pal = factpal,
-            values = sabi_wgs$segment_ID_both,
+            values = mvmt_data_wgs$segment_ID_both,
             title = 'Segments - filtered statics and small')
 
 # Plot the leaflet object m
 m
 ```
 
-5) Compute trajectories derivatives for each segment
 
+5)
+Note: static to improve.  
+```{r}
+mvmt_seg_final <- mvmt_data_filtered %>% 
+  dplyr::select(-c("segment_ID_user", "segment_ID_gap", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
+))
+mvmt_seg_final %>% View()
+```
+
+
+5) Compute trajectories derivatives for each segment
+--> to do after annotation.  
 ```{r}
 # SUMMARIZE
-sabi_summarized <- sabi_filtered %>%
+mvmt_data_summarized <- mvmt_data_filtered %>%
   summarize(
     stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
     steplength_mean = mean(steplength_m), 
     speed_ms_mean = mean(speed_ms), 
     lst_geometry = list(geometry))
-sabi_summarized %>% View()
+mvmt_data_summarized %>% View()
 
 ```
 
@@ -834,7 +870,7 @@ sabi_summarized %>% View()
 done: 
 - check buffer distance with other examples
 - calculate % per segment to attributes FALSE/TRUE to the segment
--> add it in sabi_summarized
+-> add it in mvmt_data_summarized
 
 TODO:
 -> to check with all data not only an extract
@@ -850,7 +886,7 @@ Import the railways:
 ```{r}
 #mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
 #extract <- mvmt_data[1:100,]
-extract <- sabi_filtered %>% filter(tmode_manual == "train")
+extract <- mvmt_data_filtered %>% filter(tmode_manual == "train")
 rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 
 joined_data <- extract %>% 
