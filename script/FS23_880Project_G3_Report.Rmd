@@ -551,8 +551,8 @@ GPS sampling rate: 5 sec
 Point to drop when we are done with the tests.  
 ```{r}
 #try on a sampled data
-mvmt_data2 <- mvmt_data |>
-  filter(as.Date(datetime) == "2023-05-04")
+mvmt_data2 <- mvmt_data #|>
+  #filter(as.Date(datetime) == "2023-05-04")
   #filter(tmode_manual == "train")
 mvmt_data2
 ```
@@ -568,30 +568,27 @@ mvmt_data_gap <- mvmt_data2 |>
 
 
 #Visualisation of gap / no gap
-mvmt_data_filter_gap <- mvmt_data_gap |> filter(gap)
-mvmt_data_filter_non <- mvmt_data_gap |> filter(!gap)
-
-mvmt_data_filter_gap_wgs <- mvmt_data_filter_gap %>% st_transform(crs = 4326)
-mvmt_data_filter_non_wgs <- mvmt_data_filter_non%>% st_transform(crs = 4326)
+visu_gap_wgs <- mvmt_data_gap |> filter(gap) %>% st_transform(crs = 4326)
+visu_no_gap_wgs <- mvmt_data_gap |> filter(!gap) %>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = mvmt_data_filter_non_wgs,
+  addCircleMarkers(data = visu_no_gap_wgs,
                    radius = 0.2,
                    popup = paste(
-                     " steplength: ", round(mvmt_data_filter_non_wgs$steplength_m,2),
-                     " timelag: ", mvmt_data_filter_non_wgs$timelag,
-                     " speed_ms: ", round(mvmt_data_filter_non_wgs$speed_ms,2),
-                     " source: ", mvmt_data_filter_non_wgs$source
+                     " steplength: ", round(visu_no_gap_wgs$steplength_m,2),
+                     " timelag: ", visu_no_gap_wgs$timelag,
+                     " speed_ms: ", round(visu_no_gap_wgs$speed_ms,2),
+                     " source: ", visu_no_gap_wgs$source
                      ),
                    color = 'blue') %>%
-  addCircleMarkers(data = mvmt_data_filter_gap_wgs,
+  addCircleMarkers(data = visu_gap_wgs,
                    radius = 0.2,
                    popup = paste(
-                     " steplength: ", round(mvmt_data_filter_gap_wgs$steplength_m,2),
-                     " timelag: ", mvmt_data_filter_gap_wgs$timelag,
-                     " speed_ms: ", round(mvmt_data_filter_gap_wgs$speed_ms,2),
-                     " source: ", mvmt_data_filter_gap_wgs$source
+                     " steplength: ", round(visu_gap_wgs$steplength_m,2),
+                     " timelag: ", visu_gap_wgs$timelag,
+                     " speed_ms: ", round(visu_gap_wgs$speed_ms,2),
+                     " source: ", visu_gap_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
@@ -739,37 +736,33 @@ mvmt_data_add_static <- mvmt_data_segmentized |>
 #mvmt_data %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
 
 
-
-
 #Visualisation of static / non static:
-mvmt_data_filter_static <- mvmt_data_add_static |> filter(static)
-mvmt_data_filter_non <- mvmt_data_add_static |> filter(!static)
+visu_static_wgs <- mvmt_data_add_static |> filter(static) %>% st_transform(crs = 4326)
 
-mvmt_data_filter_static_wgs <- mvmt_data_filter_static %>% st_transform(crs = 4326)
-mvmt_data_filter_non_wgs <- mvmt_data_filter_non%>% st_transform(crs = 4326)
+visu_no_static_wgs <- mvmt_data_add_static |> filter(!static) %>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = mvmt_data_filter_non_wgs,
+  addCircleMarkers(data = visu_no_static_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", mvmt_data_filter_non_wgs$stepMean_midw,
-                     " steplength: ", round(mvmt_data_filter_non_wgs$steplength_m,2),
-                     " timelag: ", mvmt_data_filter_non_wgs$timelag,
-                     " speed_ms: ", round(mvmt_data_filter_non_wgs$speed_ms,2),
-                     " source: ", mvmt_data_filter_non_wgs$source
+                     "step_mean: ", visu_no_static_wgs$stepMean_midw,
+                     " steplength: ", round(visu_no_static_wgs$steplength_m,2),
+                     " timelag: ", visu_no_static_wgs$timelag,
+                     " speed_ms: ", round(visu_no_static_wgs$speed_ms,2),
+                     " source: ", visu_no_static_wgs$source
                      ),
                    color = 'blue') %>%
-  addCircleMarkers(data = mvmt_data_filter_static_wgs,
+  addCircleMarkers(data = visu_static_wgs,
                    #opacity = 0.3,
                    radius = 0.2,
                    popup = paste(
-                     "step_mean: ", mvmt_data_filter_static_wgs$stepMean_midw,
-                     " steplength: ", round(mvmt_data_filter_static_wgs$steplength_m,2),
-                     " timelag: ", mvmt_data_filter_static_wgs$timelag,
-                     " speed_ms: ", round(mvmt_data_filter_static_wgs$speed_ms,2),
-                     " source: ", mvmt_data_filter_static_wgs$source
+                     "step_mean: ", visu_static_wgs$stepMean_midw,
+                     " steplength: ", round(visu_static_wgs$steplength_m,2),
+                     " timelag: ", visu_static_wgs$timelag,
+                     " speed_ms: ", round(visu_static_wgs$speed_ms,2),
+                     " source: ", visu_static_wgs$source
                      ),
                    color = 'red') %>%
   addLegend(position = 'topright', 
@@ -780,7 +773,7 @@ m <- leaflet() %>%
 # Plot the leaflet object m
 m
 
-# mvmt_data_filter_non |>
+# visu_no_static |>
 #     ggplot(aes(E, N)) +
 #     geom_path() +
 #     geom_point() +
@@ -849,13 +842,13 @@ mvmt_seg_final %>% View()
 --> to do after annotation.  
 ```{r}
 # SUMMARIZE
-mvmt_data_summarized <- mvmt_data_filtered %>%
+mvmt_seg_summarized <- mvmt_seg_final %>%
   summarize(
     stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
     steplength_mean = mean(steplength_m), 
     speed_ms_mean = mean(speed_ms), 
     lst_geometry = list(geometry))
-mvmt_data_summarized %>% View()
+mvmt_seg_summarized %>% View()
 
 ```
 
@@ -884,35 +877,27 @@ Overlapp % 30m -> 70%
 
 Import the railways:  
 ```{r}
-#mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
-#extract <- mvmt_data[1:100,]
-extract <- mvmt_data_filtered %>% filter(tmode_manual == "train")
 rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 
-joined_data <- extract %>% 
+joined_data <- mvmt_seg_final %>% 
   st_join(rails_shp, join = st_is_within_distance, 30)
 
-extract$isClosetoRails <- !is.na(joined_data$xtf_id)
+mvmt_seg_final$isClosetoRails <- !is.na(joined_data$xtf_id)
 
 # SUMMARIZE
-extract_summarized <- extract %>%
+mvmt_seg_final_summarized <- mvmt_seg_final %>%
   summarize(
     isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
     stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
     steplength_mean = mean(steplength_m), 
     speed_ms_mean = mean(speed_ms), 
     lst_geometry = list(geometry))
-extract_summarized %>% View()
+mvmt_seg_final_summarized %>% View()
 
-#filter extract
-lst_extract <- c("1-60-1", #huge gap to filter out.
-"1-99-1") #<- Olten, not all rails of the stations are represented.
-
-extract_f <- extract #%>% filter(segment_ID_both %in% lst_extract)
 
 #Visualisation of proximity:
-filter_true <- extract_f |> filter(isClosetoRails) %>% st_transform(crs = 4326)
-filter_false <- extract_f |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
 
 rails_wgs <- rails_shp %>% st_transform(crs = 4326)
 
@@ -924,16 +909,16 @@ m <- leaflet() %>%
     data = rails_wgs,
     color = 'green'
   ) %>%
-  addCircleMarkers(data = filter_false,
+  addCircleMarkers(data = visu_false,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", filter_false$tmode_manual, ". ID: ", filter_false$segment_ID_both
+                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
                      ),
                    color = 'red') %>%
-  addCircleMarkers(data = filter_true,
+  addCircleMarkers(data = visu_true,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ",  filter_true$tmode_manual, ". ID: ", filter_false$segment_ID_both
+                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
                      ),
                    color = 'blue') %>%
   addLegend(position = 'topright', 
@@ -944,8 +929,9 @@ m <- leaflet() %>%
 # Plot the leaflet object m
 m
 
-
 ```
+
+
 
 
 ### Summarize characteristics of the means of transport
