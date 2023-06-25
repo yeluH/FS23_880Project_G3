@@ -328,16 +328,21 @@ gps_data <- dplyr::select(gps_data, c("source", "datetime", "N", "E", "H", "geom
 
 #### Labelizing data
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
-
-
 # Conditions for different travel modes
+
+
+
 condition_bus <- 
   gps_data$datetime >= as.POSIXct("2023-04-21 16:18:35") & gps_data$datetime <= as.POSIXct("2023-04-21 16:23:40") | 
   gps_data$datetime >= as.POSIXct("2023-04-30 18:04:25") & gps_data$datetime <= as.POSIXct("2023-04-30 18:20:15") | 
   gps_data$datetime >= as.POSIXct("2023-04-30 19:46:20") & gps_data$datetime <= as.POSIXct("2023-04-30 19:59:25") |
   gps_data$datetime >= as.POSIXct("2023-05-10 19:31:25") & gps_data$datetime <= as.POSIXct("2023-05-10 19:34:55") |
   gps_data$datetime >= as.POSIXct("2023-05-10 22:43:00") & gps_data$datetime <= as.POSIXct("2023-05-10 22:56:05") |
-  gps_data$datetime >= as.POSIXct("2023-05-12 07:46:00") & gps_data$datetime <= as.POSIXct("2023-05-12 07:51:20")
+  gps_data$datetime >= as.POSIXct("2023-05-12 07:46:00") & gps_data$datetime <= as.POSIXct("2023-05-12 07:51:20") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 07:45:20") & gps_data$datetime <= as.POSIXct("2023-05-26 07:50:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 14:59:35") & gps_data$datetime <= as.POSIXct("2023-06-05 15:09:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 15:17:55") & gps_data$datetime <= as.POSIXct("2023-06-05 15:27:40") 
+
 
 
 condition_tram <- 
@@ -376,10 +381,50 @@ condition_tram <-
   gps_data$datetime >= as.POSIXct("2023-05-17 14:27:15") & gps_data$datetime <= as.POSIXct("2023-05-17 14:35:00") |
   gps_data$datetime >= as.POSIXct("2023-05-17 14:52:15") & gps_data$datetime <= as.POSIXct("2023-05-17 15:00:25") |
   gps_data$datetime >= as.POSIXct("2023-05-17 15:22:40") & gps_data$datetime <= as.POSIXct("2023-05-17 15:30:10") |
-  gps_data$datetime >= as.POSIXct("2023-05-29 17:40:10") & gps_data$datetime <= as.POSIXct("2023-05-29 17:59:50") | 
-  gps_data$datetime >= as.POSIXct("2023-05-29 18:20:00") & gps_data$datetime <= as.POSIXct("2023-05-29 18:27:35") | 
+  gps_data$datetime >= as.POSIXct("2023-05-18 14:45:50") & gps_data$datetime <= as.POSIXct("2023-05-18 14:56:25") |
+  gps_data$datetime >= as.POSIXct("2023-05-18 16:00:10") & gps_data$datetime <= as.POSIXct("2023-05-18 16:07:10") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 16:43:35") & gps_data$datetime <= as.POSIXct("2023-05-20 16:51:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 17:00:30") & gps_data$datetime <= as.POSIXct("2023-05-20 17:07:45") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 20:30:40") & gps_data$datetime <= as.POSIXct("2023-05-20 20:45:40") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 19:10:00") & gps_data$datetime <= as.POSIXct("2023-05-21 19:14:15") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 19:16:50") & gps_data$datetime <= as.POSIXct("2023-05-21 19:37:25") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 20:25:00") & gps_data$datetime <= as.POSIXct("2023-05-21 20:29:10") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 20:37:45") & gps_data$datetime <= as.POSIXct("2023-05-21 20:47:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 17:43:35") & gps_data$datetime <= as.POSIXct("2023-05-23 17:57:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 17:43:35") & gps_data$datetime <= as.POSIXct("2023-05-23 17:57:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-24 13:19:10") & gps_data$datetime <= as.POSIXct("2023-05-24 13:24:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-24 17:39:00") & gps_data$datetime <= as.POSIXct("2023-05-24 17:55:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 14:46:30") & gps_data$datetime <= as.POSIXct("2023-05-25 14:55:30") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 15:19:20") & gps_data$datetime <= as.POSIXct("2023-05-25 15:28:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 13:17:05") & gps_data$datetime <= as.POSIXct("2023-05-26 13:31:20") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 13:53:00") & gps_data$datetime <= as.POSIXct("2023-05-26 14:10:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 14:16:00") & gps_data$datetime <= as.POSIXct("2023-05-26 14:18:05") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 14:52:20") & gps_data$datetime <= as.POSIXct("2023-05-28 15:04:05") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 15:22:40") & gps_data$datetime <= as.POSIXct("2023-05-28 15:38:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 20:20:00") & gps_data$datetime <= as.POSIXct("2023-05-28 20:37:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 20:45:05") & gps_data$datetime <= as.POSIXct("2023-05-28 20:56:10") |
+  gps_data$datetime >= as.POSIXct("2023-05-29 17:40:05") & gps_data$datetime <= as.POSIXct("2023-05-29 17:59:50") | 
+  gps_data$datetime >= as.POSIXct("2023-05-29 18:19:55") & gps_data$datetime <= as.POSIXct("2023-05-29 18:27:35") | 
   gps_data$datetime >= as.POSIXct("2023-05-29 18:28:35") & gps_data$datetime <= as.POSIXct("2023-05-29 18:36:00") | 
-  gps_data$datetime >= as.POSIXct("2023-05-29 18:56:35") & gps_data$datetime <= as.POSIXct("2023-05-29 19:09:30")
+  gps_data$datetime >= as.POSIXct("2023-05-29 18:56:35") & gps_data$datetime <= as.POSIXct("2023-05-29 19:09:30") |
+  gps_data$datetime >= as.POSIXct("2023-05-30 17:31:10") & gps_data$datetime <= as.POSIXct("2023-05-30 17:42:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-30 19:04:55") & gps_data$datetime <= as.POSIXct("2023-05-30 19:48:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-31 17:08:25") & gps_data$datetime <= as.POSIXct("2023-05-31 17:09:40") |
+  gps_data$datetime >= as.POSIXct("2023-05-31 17:34:25") & gps_data$datetime <= as.POSIXct("2023-05-31 17:42:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 13:29:10") & gps_data$datetime <= as.POSIXct("2023-06-02 13:30:45") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 13:36:25") & gps_data$datetime <= as.POSIXct("2023-06-02 13:50:55") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 14:55:10") & gps_data$datetime <= as.POSIXct("2023-06-02 15:13:10") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 16:58:15") & gps_data$datetime <= as.POSIXct("2023-06-04 17:00:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 17:09:20") & gps_data$datetime <= as.POSIXct("2023-06-04 17:14:10") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 18:18:35") & gps_data$datetime <= as.POSIXct("2023-06-04 18:22:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 18:48:20") & gps_data$datetime <= as.POSIXct("2023-06-04 19:03:35") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 15:37:15") & gps_data$datetime <= as.POSIXct("2023-06-05 15:40:15") |
+  gps_data$datetime >= as.POSIXct("2023-06-09 13:51:50") & gps_data$datetime <= as.POSIXct("2023-06-09 13:53:45") |
+  gps_data$datetime >= as.POSIXct("2023-06-10 18:35:10") & gps_data$datetime <= as.POSIXct("2023-06-10 18:48:30") |
+  gps_data$datetime >= as.POSIXct("2023-06-10 20:48:30") & gps_data$datetime <= as.POSIXct("2023-06-10 21:01:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-12 19:07:00") & gps_data$datetime <= as.POSIXct("2023-06-12 19:14:45") |
+  gps_data$datetime >= as.POSIXct("2023-06-12 19:43:20") & gps_data$datetime <= as.POSIXct("2023-06-12 19:45:40")
+
 
 
 condition_walk <- 
@@ -415,23 +460,75 @@ condition_walk <-
   gps_data$datetime >= as.POSIXct("2023-05-16 17:44:00") & gps_data$datetime <= as.POSIXct("2023-05-16 17:47:00") |
   gps_data$datetime >= as.POSIXct("2023-05-16 17:51:20") & gps_data$datetime <= as.POSIXct("2023-05-16 17:54:05") |
   gps_data$datetime >= as.POSIXct("2023-05-17 15:44:15") & gps_data$datetime <= as.POSIXct("2023-05-17 15:48:05") |
-  gps_data$datetime >= as.POSIXct("2023-06-02 13:22:45") & gps_data$datetime <= as.POSIXct("2023-06-02 13:28:00") |
-  gps_data$datetime >= as.POSIXct("2023-06-05 14:49:00") & gps_data$datetime <= as.POSIXct("2023-06-05 14:57:00") |
-  gps_data$datetime >= as.POSIXct("2023-06-12 21:29:35") & gps_data$datetime <= as.POSIXct("2023-06-12 22:11:45")
+  gps_data$datetime >= as.POSIXct("2023-05-18 14:21:00") & gps_data$datetime <= as.POSIXct("2023-05-18 14:40:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-18 14:57:00") & gps_data$datetime <= as.POSIXct("2023-05-18 15:56:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-18 16:11:45") & gps_data$datetime <= as.POSIXct("2023-05-18 16:14:30") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 16:39:20") & gps_data$datetime <= as.POSIXct("2023-05-20 16:41:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 17:09:00") & gps_data$datetime <= as.POSIXct("2023-05-20 20:30:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-20 20:49:40") & gps_data$datetime <= as.POSIXct("2023-05-20 20:53:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 19:37:35") & gps_data$datetime <= as.POSIXct("2023-05-21 20:24:05") |
+  gps_data$datetime >= as.POSIXct("2023-05-21 20:48:00") & gps_data$datetime <= as.POSIXct("2023-05-21 20:52:20") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 17:34:05") & gps_data$datetime <= as.POSIXct("2023-05-23 17:36:25") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 17:58:45") & gps_data$datetime <= as.POSIXct("2023-05-23 19:16:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 19:39:10") & gps_data$datetime <= as.POSIXct("2023-05-23 19:42:10") |
+  gps_data$datetime >= as.POSIXct("2023-05-24 09:12:05") & gps_data$datetime <= as.POSIXct("2023-05-24 09:17:20") |
+  gps_data$datetime >= as.POSIXct("2023-05-24 14:50:15") & gps_data$datetime <= as.POSIXct("2023-05-24 14:52:20") |
+  gps_data$datetime >= as.POSIXct("2023-05-24 15:42:05") & gps_data$datetime <= as.POSIXct("2023-05-24 16:38:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 14:35:55") & gps_data$datetime <= as.POSIXct("2023-05-25 14:40:25") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 14:55:35") & gps_data$datetime <= as.POSIXct("2023-05-25 14:57:05") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 15:14:50") & gps_data$datetime <= as.POSIXct("2023-05-25 15:19:15") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 15:29:00") & gps_data$datetime <= as.POSIXct("2023-05-25 15:35:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-25 20:06:20") & gps_data$datetime <= as.POSIXct("2023-05-25 20:52:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 07:51:15") & gps_data$datetime <= as.POSIXct("2023-05-26 07:54:15") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 08:47:15") & gps_data$datetime <= as.POSIXct("2023-05-26 12:17:30") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 13:31:40") & gps_data$datetime <= as.POSIXct("2023-05-26 13:49:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-26 14:27:10") & gps_data$datetime <= as.POSIXct("2023-05-26 17:20:10") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 15:39:00") & gps_data$datetime <= as.POSIXct("2023-05-28 20:19:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-28 20:57:05") & gps_data$datetime <= as.POSIXct("2023-05-28 21:00:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-29 17:05:05") & gps_data$datetime <= as.POSIXct("2023-05-29 17:40:00") |
+  gps_data$datetime >= as.POSIXct("2023-05-29 18:13:30") & gps_data$datetime <= as.POSIXct("2023-05-29 18:18:45") |
+  gps_data$datetime >= as.POSIXct("2023-05-30 11:33:25") & gps_data$datetime <= as.POSIXct("2023-05-30 11:37:15") |
+  gps_data$datetime >= as.POSIXct("2023-05-31 17:44:25") & gps_data$datetime <= as.POSIXct("2023-05-31 17:48:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 13:23:45") & gps_data$datetime <= as.POSIXct("2023-06-02 13:28:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 13:55:35") & gps_data$datetime <= as.POSIXct("2023-06-02 14:19:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 14:39:30") & gps_data$datetime <= as.POSIXct("2023-06-02 14:47:05") |
+  gps_data$datetime >= as.POSIXct("2023-06-02 15:16:45") & gps_data$datetime <= as.POSIXct("2023-06-02 15:20:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 17:00:50") & gps_data$datetime <= as.POSIXct("2023-06-04 17:06:30") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 17:17:20") & gps_data$datetime <= as.POSIXct("2023-06-04 18:17:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-04 19:04:45") & gps_data$datetime <= as.POSIXct("2023-06-04 19:08:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 12:51:35") & gps_data$datetime <= as.POSIXct("2023-06-05 12:56:40") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 14:49:00") & gps_data$datetime <= as.POSIXct("2023-06-05 14:55:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 15:28:00") & gps_data$datetime <= as.POSIXct("2023-06-05 15:36:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-05 15:42:40") & gps_data$datetime <= as.POSIXct("2023-06-05 15:46:05") |
+  gps_data$datetime >= as.POSIXct("2023-06-06 20:00:05") & gps_data$datetime <= as.POSIXct("2023-06-06 20:34:25") |
+  gps_data$datetime >= as.POSIXct("2023-06-08 20:55:10") & gps_data$datetime <= as.POSIXct("2023-06-08 21:22:10") |
+  gps_data$datetime >= as.POSIXct("2023-06-09 13:54:10") & gps_data$datetime <= as.POSIXct("2023-06-09 17:14:20") |
+  gps_data$datetime >= as.POSIXct("2023-06-10 18:50:20") & gps_data$datetime <= as.POSIXct("2023-06-10 20:45:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-10 21:03:15") & gps_data$datetime <= as.POSIXct("2023-06-10 21:05:40") |
+  gps_data$datetime >= as.POSIXct("2023-06-12 21:29:35") & gps_data$datetime <= as.POSIXct("2023-06-12 22:11:45") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 21:43:25") & gps_data$datetime <= as.POSIXct("2023-06-15 21:45:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 21:52:10") & gps_data$datetime <= as.POSIXct("2023-06-15 21:55:05") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 21:58:05") & gps_data$datetime <= as.POSIXct("2023-06-15 21:59:55") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 22:02:00") & gps_data$datetime <= as.POSIXct("2023-06-15 22:07:15") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 22:14:45") & gps_data$datetime <= as.POSIXct("2023-06-15 22:19:00") |
+  gps_data$datetime >= as.POSIXct("2023-06-15 22:25:25") & gps_data$datetime <= as.POSIXct("2023-06-15 22:28:20") |
+  gps_data$datetime >= as.POSIXct("2023-06-16 10:17:45") & gps_data$datetime <= as.POSIXct("2023-06-16 10:21:25") 
+
 
 
 condition_boat <- 
   gps_data$datetime >= as.POSIXct("2023-06-02 14:20:00") & gps_data$datetime <= as.POSIXct("2023-06-02 14:37:20")
 
 
+
 condition_run <- 
+  gps_data$datetime >= as.POSIXct("2023-05-21 20:24:10") & gps_data$datetime <= as.POSIXct("2023-05-21 20:24:55") |
   gps_data$datetime >= as.POSIXct("2023-06-08 20:59:00") & gps_data$datetime <= as.POSIXct("2023-06-08 21:17:55") |
   gps_data$datetime >= as.POSIXct("2023-06-15 21:45:10") & gps_data$datetime <= as.POSIXct("2023-06-15 21:52:00") |
   gps_data$datetime >= as.POSIXct("2023-06-15 21:55:10") & gps_data$datetime <= as.POSIXct("2023-06-15 21:57:25") |
   gps_data$datetime >= as.POSIXct("2023-06-15 22:00:00") & gps_data$datetime <= as.POSIXct("2023-06-15 22:01:55") |
   gps_data$datetime >= as.POSIXct("2023-06-15 22:07:40") & gps_data$datetime <= as.POSIXct("2023-06-15 22:14:40") |
   gps_data$datetime >= as.POSIXct("2023-06-15 22:19:45") & gps_data$datetime <= as.POSIXct("2023-06-15 22:20:55")
-
 
 
 
