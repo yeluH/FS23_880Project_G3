@@ -45,9 +45,10 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
-# https://github.com/benmarwick/wordcountaddin
-# check_pkg("wordcountaddin") -> ma: does not work on my computer :(
 
+#https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
+check_pkg("rmdwc")
+rmdcountAddin()
 
 #DATA FOLDER
 #On Martine laptop:
@@ -57,7 +58,9 @@ data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Anal
 ```
 
 # Criteria:
-length: 30'000 - 50'000  
+new length: 
+  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
+
 Report your work in a written project report. The report has two functions:  
 – It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.  
 – It will be used to evaluate and mark your project.
@@ -118,6 +121,15 @@ coords <- posmo |> st_coordinates()
 posmo <- posmo |> 
   mutate(E =  coords[,1], N = coords[,2])
 
+
+# Keep only Switzerland
+ch_ll <- c(2460666, 1069416)
+ch_ur <- c(2849000, 1300750)
+posmo <- posmo %>% 
+  filter((E > ch_ll[1] & E < ch_ur[1] & N > ch_ll[2] & N < ch_ur[2]))
+
+
+
 #update timezone
 posmo <- posmo %>%
   mutate(
@@ -132,17 +144,23 @@ posmo <- posmo %>%
 
 #Extract values from rasters:
 #https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
-
-# On both laptop
 dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
 
 rasValue <- extract(dhm25, posmo)
 posmo$H <- rasValue
 
+
 # #Adapt column order
 # col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry")
 # posmo <- posmo[, col_order]
 # posmo
+
+
+# REMOVE:
+# heights for plane
+# rmeove outside of Switzerland (Freiburg and Basel)
+
+
 ```
 
 #### Labelize posmo data
@@ -280,9 +298,16 @@ posmo <- posmo %>%
                                   condition_skis ~ 'ski',
                                   is.na(posmo$tmode_manual) == TRUE ~ 'unclassified'
                                   ))
+
+
+# Remove heights for plane (bc completely false):
+posmo$H[posmo$tmode_manual == "plane"] <- NA
+
+
 # select columns
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
 ```
+
 
 
 ### GPS data
@@ -1117,14 +1142,25 @@ Import the trams:
 ```{r}
 trams_shp <- read_sf(here(data_folder, "railways", "trams_dissolved.shp")) %>% st_zm() 
 
-joined_data <- mvmt_seg_final %>% 
+extract <- mvmt_seg_final %>% filter(tmode_manual == "tram")
+
+joined_data <- extract %>% 
   st_join(trams_shp, join = st_is_within_distance, 20)
 
-mvmt_seg_final$isClosetoTrams <- !is.na(joined_data$xtf_id)
+extract$isClosetoTrams <- !is.na(joined_data$xtf_id)
 
 #Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoTrams) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoTrams) %>% st_transform(crs = 4326)
+visu_true <- extract |> filter(isClosetoTrams) %>% st_transform(crs = 4326)
+visu_false <- extract |> filter(!isClosetoTrams) %>% st_transform(crs = 4326)
+
+
+
+mvmt_seg_final_summarized <- extract %>%
+  summarize(
+    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 69.0
+    )
+
+mvmt_seg_final_summarized %>% View()
 
 trams_wgs <- trams_shp %>% st_transform(crs = 4326)
 
@@ -1252,18 +1288,29 @@ m
 
 
 Ski lifts and cable cars:
-(to check distance to be close, 60% ??)
 ```{r}
 cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar.shp")) %>% st_zm()
 
-joined_data <- mvmt_seg_final %>%
+extract <- mvmt_seg_final %>% filter(tmode_manual == "ski_lift" | tmode_manual == "t_bar" | tmode_manual == "cable_car")
+#%>% filter(as.Date("2023-04-12") == as.Date(datetime))
+#%>% filter(tmode_manual == "walk")
+
+joined_data <- extract %>%
   st_join(cables_shp, join = st_is_within_distance, 10)
 
-mvmt_seg_final$isClosetoCables <- !is.na(joined_data$UUID)
+extract$isClosetoCables <- !is.na(joined_data$UUID)
+
+#SUMMARY
+mvmt_seg_final_summarized <- extract %>%
+  summarize(
+    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0
+    )
+mvmt_seg_final_summarized %>% View()
+
 
 #Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoCables) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoCables) %>% st_transform(crs = 4326)
+visu_true <- extract |> filter(isClosetoCables) %>% st_transform(crs = 4326)
+visu_false <- extract |> filter(!isClosetoCables) %>% st_transform(crs = 4326)
 
 cables_wgs <- cables_shp %>% st_transform(crs = 4326)
 
@@ -1296,19 +1343,6 @@ m
 
 
 
-```{r}
-# SUMMARIZE
-mvmt_seg_final_summarized <- mvmt_seg_final %>%
-  summarize(
-    isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
-    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
-    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
-    isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
-    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 70.0
-    )
-mvmt_seg_final_summarized %>% View()
-```
-
 BUS STOPS
 source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
 sort all the stops which contains "bus" as Type of transport.
@@ -1320,7 +1354,7 @@ bus_shp <- read_sf(here(data_folder, "stops", "bus_stops_dissolved.shp")) %>% st
 
 #mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
 #extract <- mvmt_data[1:100,]
-extract <- mvmt_seg_final %>% filter(tmode_manual == "bus")
+extract <- mvmt_seg_final %>% filter(tmode_manual == "walk")
 #|> filter(as.Date(datetime) == "2023-06-02")
 #%>% filter(tmode_manual == "boat")
 
@@ -1332,12 +1366,12 @@ extract$isClosetoBus <- !is.na(joined_data$fid)
 # SUMMARIZE
 extract_summarized <- extract %>%
   summarize(
-    isClosetoBus =  (sum(isClosetoBus) / n() * 100 )
+    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0
     )
 extract_summarized %>% View()
 
 #filter extract
-lst_extract <- c("1-60-1", #huge gap to filter out.
+lst_extract <- c("2-1753-429", #huge gap to filter out.
 "1-99-1") #<- Olten, not all rails of the stations are represented.
 
 extract_f <- extract #%>% filter(segment_ID_both %in% lst_extract)
@@ -1349,11 +1383,14 @@ visu_false <- extract_f |> filter(!isClosetoBus) %>% st_transform(crs = 4326)
 
 
 #VISU
-bus_wgs <- bus_shp %>% st_transform(crs = 4326)
+#bus_wgs <- bus_shp %>% st_transform(crs = 4326)
+
+bus_wgs <- read_sf(here(data_folder, "stops", "bus_stops.shp")) %>% st_zm() %>% st_transform(crs = 4326)
+
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
-  addMarkers(
+  addCircleMarkers(
     data = bus_wgs,
     color = 'green'
   ) %>%
@@ -1378,6 +1415,75 @@ m <- leaflet() %>%
 m
 ```
 
+MOUNTAIN AREAS:  
+stations de basses altitude (Jura, ...)
+Abbaye: 1000m
+Les Rasses: 1100m
+Tuffes: 1200m
+
+Les pléaides: 1200m
+Villars-sur-Ollon: 1200m (?)
+
+-> lets take 1200m
+```{r}
+mvmt_seg_final <- mvmt_seg_final %>% mutate(
+  isHighAltitude = case_when(H >= 1200.0 ~ TRUE,
+                             .default = FALSE)
+)
+
+mvmt_seg_final_summarized <- mvmt_seg_final %>%
+  summarize(
+    isHighAltitude = (sum(isHighAltitude) / n() * 100 ) > 80.0
+    )
+mvmt_seg_final_summarized %>% View()
+
+
+
+#Visualisation of proximity:
+visu_true <- mvmt_seg_final |> filter(isHighAltitude) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isHighAltitude) %>% st_transform(crs = 4326)
+
+
+#VISU
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(data = visu_false,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     ),
+                   color = 'red') %>%
+  addCircleMarkers(data = visu_true,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     ),
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('close', 'not close'),
+            title = 'Proximity to environment')
+
+# Plot the leaflet object m
+m
+
+```
+
+
+```{r}
+# SUMMARIZE
+mvmt_seg_final_summarized <- mvmt_seg_final %>%
+  summarize(
+    isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
+    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
+    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0,
+    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
+    isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
+    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
+    isHighAltitude = (sum(isClosetoCables) / n() * 100 ) > 80.0
+    )
+mvmt_seg_final_summarized %>% View()
+```
 
 
 
