@@ -1083,185 +1083,102 @@ done:
 - calculate % per segment to attributes FALSE/TRUE to the segment
 -> add it in mvmt_data_summarized
 
-TODO:
--> to check with all data not only an extract
-
 Q: -> faire convex-hull autour des points pour couper les datasets et limiter le tps de calcul? (sur R)
 
-
-
-Buffers: should be big enough to get the stations (not all rails are mapped) (30m)
-Overlapp % 30m -> 70%
-
-Import the railways:  
 ```{r}
-rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
+#ALL
 
+# 1) RAILS
+rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 joined_data <- mvmt_seg_final %>% 
   st_join(rails_shp, join = st_is_within_distance, 30)
 
 mvmt_seg_final$isClosetoRails <- !is.na(joined_data$xtf_id)
 
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
-
-rails_wgs <- rails_shp %>% st_transform(crs = 4326)
-
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = rails_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-
-```
-
-
-Import the trams:  
-```{r}
+# 2) TRAMS
 trams_shp <- read_sf(here(data_folder, "railways", "trams_dissolved.shp")) %>% st_zm() 
-
-extract <- mvmt_seg_final %>% filter(tmode_manual == "tram")
-
-joined_data <- extract %>% 
+joined_data <- mvmt_seg_final %>% 
   st_join(trams_shp, join = st_is_within_distance, 20)
 
-extract$isClosetoTrams <- !is.na(joined_data$xtf_id)
+mvmt_seg_final$isClosetoTrams <- !is.na(joined_data$xtf_id)
 
-#Visualisation of proximity:
-visu_true <- extract |> filter(isClosetoTrams) %>% st_transform(crs = 4326)
-visu_false <- extract |> filter(!isClosetoTrams) %>% st_transform(crs = 4326)
+# 3) BUS STOPS
+bus_shp <- read_sf(here(data_folder, "stops", "bus_stops_dissolved.shp")) %>% st_zm() 
+joined_data <- mvmt_seg_final %>%
+  st_join(bus_shp, join = st_is_within_distance, 50)
 
+mvmt_seg_final$isClosetoBus <- !is.na(joined_data$fid)
 
-
-mvmt_seg_final_summarized <- extract %>%
-  summarize(
-    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 69.0
-    )
-
-mvmt_seg_final_summarized %>% View()
-
-trams_wgs <- trams_shp %>% st_transform(crs = 4326)
-
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = trams_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-```
-
-
-IMPORT highways:
-From swissTLM3D.
-We selected only highways and autostrasse, because on this road, only cars are allowed, which would be helpful to determine cars segments.
-```{r}
+# 4) HIGHWAYS
 roads_shp <- read_sf(here(data_folder, "roads", "roads_dissolved.shp")) %>% st_zm()
-
 joined_data <- mvmt_seg_final %>%
   st_join(roads_shp, join = st_is_within_distance, 20)
 
 mvmt_seg_final$isClosetoHighways <- !is.na(joined_data$UUID)
 
-
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoHighways) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoHighways) %>% st_transform(crs = 4326)
-
-roads_wgs <- roads_shp %>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = roads_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright',
-            colors = c('blue', 'red'),
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-```
-
-
-IMPORT LAKES:
-
-Lakes have first been selected ("surface">=10000000) for the ones that could have boats.Smaller likes could also have boats, but for calcualtion performances we only took the biggest lakes in our calculations. Then dissolved.
-```{r}
+# 5) LAKES
 lakes_shp <- read_sf(here(data_folder, "lakes", "large_lakes_dissolved.shp")) %>% st_zm() 
-
 joined_data <- mvmt_seg_final %>%
   st_join(lakes_shp, join = st_is_within_distance, 1)
 
 mvmt_seg_final$isClosetoLakes <- !is.na(joined_data$UUID)
 
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoLakes) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoLakes) %>% st_transform(crs = 4326)
+# 6) SKI LIFTS AND CABLE CARS
+cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar.shp")) %>% st_zm()
+joined_data <- mvmt_seg_final %>%
+  st_join(cables_shp, join = st_is_within_distance, 10)
+
+mvmt_seg_final$isClosetoCables <- !is.na(joined_data$UUID)
+
+# 7) HIGH ALTITUDES
+mvmt_seg_final <- mvmt_seg_final %>% mutate(
+  isHighAltitude = case_when(H >= 1200.0 ~ TRUE,
+                             .default = FALSE)
+)
+```
 
 
-#VISU
-lakes_wgs <- lakes_shp %>% st_transform(crs = 4326)
+```{r}
+# SUMMARIZE ANNOTATIONS
+mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
+  summarize(
+    isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
+    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
+    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0,
+    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
+    isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
+    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
+    isHighAltitude = (sum(isClosetoCables) / n() * 100 ) > 80.0
+    )
+mvmt_seg_annotations_summarized %>% View()
+```
+
+```{r}
+#VISUALISATION
+
+#Visualisation of proximity for rails:
+
+# isClosetoRails
+# isClosetoTrams
+# isClosetoLakes
+# isClosetoHighways
+# isClosetoCables
+# isHighAltitude
+
+visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+
+wgs <- rails_shp %>% st_transform(crs = 4326)
+#wgs <- trams_shp %>% st_transform(crs = 4326)
+#wgs <- lakes_shp %>% st_transform(crs = 4326)
+#wgs <- roads_shp %>% st_transform(crs = 4326)
+#wgs <- cables_shp %>% st_transform(crs = 4326)
+# ALTITUDE = NO WGS
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
   addPolylines(
-    data = lakes_wgs,
+    data = wgs,
     color = 'green'
   ) %>%
   addCircleMarkers(data = visu_false,
@@ -1285,107 +1202,15 @@ m <- leaflet() %>%
 m
 ```
 
-
-
-Ski lifts and cable cars:
 ```{r}
-cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar.shp")) %>% st_zm()
-
-extract <- mvmt_seg_final %>% filter(tmode_manual == "ski_lift" | tmode_manual == "t_bar" | tmode_manual == "cable_car")
-#%>% filter(as.Date("2023-04-12") == as.Date(datetime))
-#%>% filter(tmode_manual == "walk")
-
-joined_data <- extract %>%
-  st_join(cables_shp, join = st_is_within_distance, 10)
-
-extract$isClosetoCables <- !is.na(joined_data$UUID)
-
-#SUMMARY
-mvmt_seg_final_summarized <- extract %>%
-  summarize(
-    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0
-    )
-mvmt_seg_final_summarized %>% View()
-
-
-#Visualisation of proximity:
-visu_true <- extract |> filter(isClosetoCables) %>% st_transform(crs = 4326)
-visu_false <- extract |> filter(!isClosetoCables) %>% st_transform(crs = 4326)
-
-cables_wgs <- cables_shp %>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = cables_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright',
-            colors = c('blue', 'red'),
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-```
-
-
-
-BUS STOPS
-source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
-sort all the stops which contains "bus" as Type of transport.
-
-au moins 2 "stops" per segment to consider it close to public transport?
-
-```{r}
-bus_shp <- read_sf(here(data_folder, "stops", "bus_stops_dissolved.shp")) %>% st_zm() 
-
-#mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc()
-#extract <- mvmt_data[1:100,]
-extract <- mvmt_seg_final %>% filter(tmode_manual == "walk")
-#|> filter(as.Date(datetime) == "2023-06-02")
-#%>% filter(tmode_manual == "boat")
-
-joined_data <- extract %>%
-  st_join(bus_shp, join = st_is_within_distance, 50)
-
-extract$isClosetoBus <- !is.na(joined_data$fid)
-
-# SUMMARIZE
-extract_summarized <- extract %>%
-  summarize(
-    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0
-    )
-extract_summarized %>% View()
-
-#filter extract
-lst_extract <- c("2-1753-429", #huge gap to filter out.
-"1-99-1") #<- Olten, not all rails of the stations are represented.
-
-extract_f <- extract #%>% filter(segment_ID_both %in% lst_extract)
-
-#Visualisation of proximity:
-visu_true <- extract_f |> filter(isClosetoBus) %>% st_transform(crs = 4326)
-visu_false <- extract_f |> filter(!isClosetoBus) %>% st_transform(crs = 4326)
-
-
+#VISUALISATION FOR BUS
 
 #VISU
-#bus_wgs <- bus_shp %>% st_transform(crs = 4326)
-
 bus_wgs <- read_sf(here(data_folder, "stops", "bus_stops.shp")) %>% st_zm() %>% st_transform(crs = 4326)
+
+#Visualisation of proximity:
+visu_true <- mvmt_seg_final |> filter(isClosetoBus) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isClosetoBus) %>% st_transform(crs = 4326)
 
 
 m <- leaflet() %>%
@@ -1415,6 +1240,34 @@ m <- leaflet() %>%
 m
 ```
 
+
+
+Blabla to sort:  
+
+
+
+IMPORT highways:
+From swissTLM3D.
+We selected only highways and autostrasse, because on this road, only cars are allowed, which would be helpful to determine cars segments.
+
+IMPORT LAKES:
+
+Lakes have first been selected ("surface">=10000000) for the ones that could have boats.Smaller likes could also have boats, but for calcualtion performances we only took the biggest lakes in our calculations. Then dissolved.
+
+
+Ski lifts and cable cars:
+
+
+BUS STOPS
+source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
+sort all the stops which contains "bus" as Type of transport.
+
+386 TRUE / 1374 total
+
+alternative: get lines from OSM.  
+
+
+
 MOUNTAIN AREAS:  
 stations de basses altitude (Jura, ...)
 Abbaye: 1000m
@@ -1425,65 +1278,8 @@ Les pléaides: 1200m
 Villars-sur-Ollon: 1200m (?)
 
 -> lets take 1200m
-```{r}
-mvmt_seg_final <- mvmt_seg_final %>% mutate(
-  isHighAltitude = case_when(H >= 1200.0 ~ TRUE,
-                             .default = FALSE)
-)
-
-mvmt_seg_final_summarized <- mvmt_seg_final %>%
-  summarize(
-    isHighAltitude = (sum(isHighAltitude) / n() * 100 ) > 80.0
-    )
-mvmt_seg_final_summarized %>% View()
 
 
-
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isHighAltitude) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isHighAltitude) %>% st_transform(crs = 4326)
-
-
-#VISU
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-
-```
-
-
-```{r}
-# SUMMARIZE
-mvmt_seg_final_summarized <- mvmt_seg_final %>%
-  summarize(
-    isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
-    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
-    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0,
-    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
-    isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
-    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
-    isHighAltitude = (sum(isClosetoCables) / n() * 100 ) > 80.0
-    )
-mvmt_seg_final_summarized %>% View()
-```
 
 
 
