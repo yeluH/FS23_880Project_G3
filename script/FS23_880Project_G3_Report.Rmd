@@ -1,7 +1,7 @@
 ---
 title: "GEO880-G3-Report"
 author: "Martine Besse & Yelu He"
-date: "2023-06-16"
+date: "2023-06-26"
 always_allow_html: true
 output:
   html_document:
@@ -657,8 +657,10 @@ mvmt_data <-
   group_by(source) %>%
   mutate(
     timelag = as.numeric(difftime(lead(datetime), datetime)),
-    steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2),
-    speed_ms = steplength_m/timelag,
+    steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2), # Horizontal steplength 
+    steplength_h = H-lead(H), # Add vertical steplength
+    speed_ms = abs(steplength_m)/timelag,
+    speed_v = abs(steplength_h)/timelag,
     slope = (lead(H) - H)/steplength_m * 100
     )
 
@@ -797,12 +799,11 @@ mvmt_data_segmentized <- mvmt_data_segmentized %>%
 #     #segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
 #   )
 
-
-# Add duration per segment
+# Add duration per segment 
+# change the unit from mins to secs
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
-  mutate(duration_mins = as.integer(difftime(max(datetime), min(datetime), units = "mins")))
-
+  mutate(duration_secs = as.integer(difftime(max(datetime), min(datetime), units = "secs")))
 
 #specify temporal window
 #60 seconds ?
@@ -835,31 +836,30 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
     ungroup()
 
 
-
-# MAP VISUALISATION
-n_segs <- mvmt_data_segmentized$segment_ID_both %>% unique() %>% length()
-mvmt_data_wgs <- mvmt_data_segmentized %>% st_transform(crs = 4326)
-
-set.seed(2)
-factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
-
-m <- leaflet() %>%
-  #addTiles() %>%  # Add default OpenStreetMap map tiles
-  addProviderTiles("Esri.WorldGrayCanvas") %>%
-  addCircleMarkers(data = mvmt_data_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
-                   color = ~factpal(segment_ID_both)) %>%
-  addLegend(position = 'topright', 
-            #colors = c('red'), 
-            #labels = c('static'),
-            pal = factpal,
-            values = mvmt_data_wgs$segment_ID_both,
-            title = 'Segments')
-
-# Plot the leaflet object m
-m
+# # MAP VISUALISATION
+# n_segs <- mvmt_data_segmentized$segment_ID_both %>% unique() %>% length()
+# mvmt_data_wgs <- mvmt_data_segmentized %>% st_transform(crs = 4326)
+# 
+# set.seed(2)
+# factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
+# 
+# m <- leaflet() %>%
+#   #addTiles() %>%  # Add default OpenStreetMap map tiles
+#   addProviderTiles("Esri.WorldGrayCanvas") %>%
+#   addCircleMarkers(data = mvmt_data_wgs,
+#                    #opacity = 0.3,
+#                    radius = 0.2,
+#                    popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
+#                    color = ~factpal(segment_ID_both)) %>%
+#   addLegend(position = 'topright',
+#             #colors = c('red'),
+#             #labels = c('static'),
+#             pal = factpal,
+#             values = mvmt_data_wgs$segment_ID_both,
+#             title = 'Segments')
+# 
+# # Plot the leaflet object m
+# m
 ```
 
 3) Add statics info
@@ -877,56 +877,64 @@ mvmt_data_add_static <- mvmt_data_segmentized |>
            #(timelag_mean > 1.0 | timelag_mean < -1.0) 
            #timelag_mean != 0.0 | 
            #is.na(timelag_mean)
-         #&
            #speed_ms_mean < 0.02 & speed_ms_mean > -0.02
            #stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE),
-           stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE),
-          #stepMean < mean(steplength_m, na.rm=TRUE),
-           #steplength_m < 1.0
+           # Optimize by adding 'or' conditions
+           stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE) | 
+           steplength_m < 0.5,
+           #stepMean < mean(steplength_m, na.rm=TRUE),
            #mean(steplength_m, na.rm = TRUE)
     static =  ifelse(is.na(static), FALSE, static)
            )
+
+# Add percentage of static in each segment
+mvmt_data_add_static <- mvmt_data_add_static |>
+  group_by(segment_ID_both) %>%
+  mutate(
+    static_percent = (sum(static))/(length(static))
+    # Optimize by only considering continuous static points
+    )
 
 
 #mvmt_data %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
 
 
-#Visualisation of static / non static:
-visu_static_wgs <- mvmt_data_add_static |> filter(static) %>% st_transform(crs = 4326)
-
-visu_no_static_wgs <- mvmt_data_add_static |> filter(!static) %>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = visu_no_static_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste(
-                     "step_mean: ", visu_no_static_wgs$stepMean_midw,
-                     " steplength: ", round(visu_no_static_wgs$steplength_m,2),
-                     " timelag: ", visu_no_static_wgs$timelag,
-                     " speed_ms: ", round(visu_no_static_wgs$speed_ms,2),
-                     " source: ", visu_no_static_wgs$source
-                     ),
-                   color = 'blue') %>%
-  addCircleMarkers(data = visu_static_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste(
-                     "step_mean: ", visu_static_wgs$stepMean_midw,
-                     " steplength: ", round(visu_static_wgs$steplength_m,2),
-                     " timelag: ", visu_static_wgs$timelag,
-                     " speed_ms: ", round(visu_static_wgs$speed_ms,2),
-                     " source: ", visu_static_wgs$source
-                     ),
-                   color = 'red') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('non static', 'static'),
-            title = 'static vs non static')
-
-# Plot the leaflet object m
-m
+# #Visualisation of static / non static:
+# visu_static_wgs <- mvmt_data_add_static |> filter(static) %>% st_transform(crs = 4326)
+# 
+# visu_no_static_wgs <- mvmt_data_add_static |> filter(!static) %>% st_transform(crs = 4326)
+# 
+# m <- leaflet() %>%
+#   addTiles() %>%  # Add default OpenStreetMap map tiles
+#   addCircleMarkers(data = visu_no_static_wgs,
+#                    #opacity = 0.3,
+#                    radius = 0.2,
+#                    popup = paste(
+#                      "step_mean: ", visu_no_static_wgs$stepMean_midw,
+#                      " steplength: ", round(visu_no_static_wgs$steplength_m,2),
+#                      " timelag: ", visu_no_static_wgs$timelag,
+#                      " speed_ms: ", round(visu_no_static_wgs$speed_ms,2),
+#                      " source: ", visu_no_static_wgs$source
+#                      ),
+#                    color = 'blue') %>%
+#   addCircleMarkers(data = visu_static_wgs,
+#                    #opacity = 0.3,
+#                    radius = 0.2,
+#                    popup = paste(
+#                      "step_mean: ", visu_static_wgs$stepMean_midw,
+#                      " steplength: ", round(visu_static_wgs$steplength_m,2),
+#                      " timelag: ", visu_static_wgs$timelag,
+#                      " speed_ms: ", round(visu_static_wgs$speed_ms,2),
+#                      " source: ", visu_static_wgs$source
+#                      ),
+#                    color = 'red') %>%
+#   addLegend(position = 'topright', 
+#             colors = c('blue', 'red'), 
+#             labels = c('non static', 'static'),
+#             title = 'static vs non static')
+# 
+# # Plot the leaflet object m
+# m
 
 # visu_no_static |>
 #     ggplot(aes(E, N)) +
@@ -948,11 +956,11 @@ m
 
 # filter static and small segments
 mvmt_data_filtered <- mvmt_data_add_static %>%
-  group_by(segment_ID_both, source, tmode_manual, duration_mins, static) %>%
+  group_by(segment_ID_both, source, tmode_manual, duration_secs, static, static_percent) %>%
   # remove static segments
   filter(static == FALSE) %>%
-  #remove the too small segments (duration < 1 min?)
-  filter(duration_mins > 1)
+  #remove the too small segments (duration < 30 s)
+  filter(duration_secs > 30)
 # we should also filter segments with less than ~5 points (?)
 
 
@@ -990,6 +998,12 @@ mvmt_seg_final <- mvmt_data_filtered %>%
   dplyr::select(-c("segment_ID_user", "segment_ID_gap", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
 ))
 mvmt_seg_final %>% View()
+
+# Updated
+mvmt_seg_filtered_select <- mvmt_data_filtered %>% 
+  dplyr::select(-c( "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
+))
+
 ```
 
 
@@ -997,6 +1011,7 @@ mvmt_seg_final %>% View()
 --> to do after annotation.  
 ```{r}
 # SUMMARIZE
+
 mvmt_seg_summarized <- mvmt_seg_final %>%
   summarize(
     stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
@@ -1004,6 +1019,29 @@ mvmt_seg_summarized <- mvmt_seg_final %>%
     speed_ms_mean = mean(speed_ms), 
     lst_geometry = list(geometry))
 mvmt_seg_summarized %>% View()
+
+# Added 
+mvmt_seg_summary <- mvmt_seg_filtered_select %>%
+  summarize(
+    # Total segments
+    #time_duration = duration_secs,
+    space_duration = sqrt((sum(abs(steplength_m))^2 + (sum(abs(steplength_h))^2))),
+    stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
+    # Step length
+    steplength_mean = mean(steplength_m),
+    steplength_sd = sd(steplength_m),
+    # Horizontal speed
+    speed_h_mean = mean(speed_ms), 
+    speed_h_sd = sd(speed_ms),
+    speed_h_range = max(speed_ms) - min(speed_ms),
+    # Vertical speed
+    speed_v_mean = mean(speed_v),
+    speed_v_sd = sd(speed_v),
+    speed_v_range = max(speed_v) - min(speed_v),
+    # Sinuosity
+    # Acceleration
+    # Geometry
+    lst_geometry = list(geometry))
 
 ```
 
