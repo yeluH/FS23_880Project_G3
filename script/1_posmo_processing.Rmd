@@ -286,7 +286,11 @@ ggplot(posmo_planes, aes(E,N, color = datetime)) +
 ### Cable car
 ```{r}
 condition_cable_cars <- 
-  posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:10:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 12:27:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:18:10", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:24:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 13:11:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 13:20:00", tz = "Europe/Zurich")
 
 posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_cable_cars ~ 'cable_car'))
@@ -313,7 +317,20 @@ condition_ski_lifts <-
   posmo$datetime > as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:14:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:22:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:30:45", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:36:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:44:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:58:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:08:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:19:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:28:30", tz = "Europe/Zurich") | 
+  posmo$datetime > as.POSIXct("2023-04-13 10:40:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:51:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:28:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:33:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:43:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:48:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:56:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:06:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:14:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:23:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:28:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:30:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:38:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:06:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:14:30", tz = "Europe/Zurich")
 
 posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_ski_lifts ~ 'ski_lift'))
@@ -333,7 +350,9 @@ ggplot(posmo_ski_lifts, aes(E,N, color = datetime)) +
 ```{r}
 condition_t_bars <- 
   posmo$datetime > as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:54:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 11:02:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:19:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:26:45", tz = "Europe/Zurich")
 
 posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_t_bars ~ 't_bar'))
@@ -362,7 +381,25 @@ condition_skis <-
   posmo$datetime > as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:14:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:19:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:22:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:30:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:36:45", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:44:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:58:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:08:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:17:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:28:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:40:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:54:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 11:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 11:25:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 15:40:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 15:59:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:24:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:28:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:36:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:43:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:48:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:56:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:06:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:14:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:23:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:30:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:38:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:06:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:14:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:26:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:42:30", tz = "Europe/Zurich")
 
 
 posmo <- posmo %>%
@@ -577,7 +614,10 @@ condition_walks <-
   posmo$datetime > as.POSIXct("2023-04-12 09:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-25 11:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 12:05:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-25 15:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-25 15:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 08:43:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 08:46:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 18:05:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 18:15:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 13:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 13:25:00", tz = "Europe/Zurich")
 
 
 #labelize data
@@ -585,7 +625,7 @@ posmo <- posmo %>%
   mutate(tmode_manual = case_when(condition_walks ~ 'walk'))
 
 # Visualisation of all labelized tmode datasets
-posmo_walks <- posmo %>% filter(tmode_manual == "walk") %>% filter(region == "Zurich") #Waadt #just for visualization, 
+posmo_walks <- posmo %>% filter(tmode_manual == "walk") %>% filter(region == "Wallis") #Waadt #just for visualization, 
 
 #plot trajectories
 ggplot(posmo_walks, aes(E,N, color = datetime)) +
@@ -611,7 +651,8 @@ condition_cars <-
   posmo$datetime > as.POSIXct("2023-06-09 21:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 22:30:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-14 07:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 08:00:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-14 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 18:10:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-06-13 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-13 19:15:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-06-13 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-13 19:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 14:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 21:41:30", tz = "Europe/Zurich")
   
 #labelize data
 posmo <- posmo %>%
@@ -630,13 +671,9 @@ ggplot(posmo_cars, aes(E,N, color = datetime)) +
 ## test
 ```{r}
 # to see segments
-
-#tram
 posmo_test <- posmo |>
-  filter(posmo$datetime > as.POSIXct("2023-06-17 11:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 12:22:00", tz = "Europe/Zurich"))
+  filter(posmo$datetime > as.POSIXct("2023-04-15 09:18:10", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:24:30", tz = "Europe/Zurich"))
 posmo_test
-
-
 
 posmo_wgs <- posmo_test %>% st_transform(crs = 4326)
 
@@ -684,7 +721,9 @@ posmo <- posmo %>%
 posmo %>% group_by(tmode_manual) %>% count()
 
 
-posmo_filter <- posmo %>% filter(tmode_manual == "ski") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
+posmo_filter <- posmo %>% filter(tmode_manual == "ski") %>% filter(as.Date(datetime) == "2023-04-13") 
+#filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
+
 
 posmo_wgs <- posmo_filter %>% st_transform(crs = 4326)
 
