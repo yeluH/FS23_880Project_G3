@@ -965,29 +965,29 @@ mvmt_data_filtered <- mvmt_data_add_static %>%
 
 
 # MAP VISUALISATION
-n_segs <- mvmt_data_filtered$segment_ID_both %>% unique() %>% length()
-mvmt_data_wgs <- mvmt_data_filtered %>% st_transform(crs = 4326)
-
-set.seed(2)
-factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
-
-m <- leaflet() %>%
-  #addTiles() %>%  # Add default OpenStreetMap map tiles
-  addProviderTiles("Esri.WorldGrayCanvas") %>%
-  addCircleMarkers(data = mvmt_data_wgs,
-                   #opacity = 0.3,
-                   radius = 0.2,
-                   popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
-                   color = ~factpal(segment_ID_both)) %>%
-  addLegend(position = 'topright', 
-            #colors = c('red'), 
-            #labels = c('static'),
-            pal = factpal,
-            values = mvmt_data_wgs$segment_ID_both,
-            title = 'Segments - filtered statics and small')
-
-# Plot the leaflet object m
-m
+# n_segs <- mvmt_data_filtered$segment_ID_both %>% unique() %>% length()
+# mvmt_data_wgs <- mvmt_data_filtered %>% st_transform(crs = 4326)
+# 
+# set.seed(2)
+# factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
+# 
+# m <- leaflet() %>%
+#   #addTiles() %>%  # Add default OpenStreetMap map tiles
+#   addProviderTiles("Esri.WorldGrayCanvas") %>%
+#   addCircleMarkers(data = mvmt_data_wgs,
+#                    #opacity = 0.3,
+#                    radius = 0.2,
+#                    popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
+#                    color = ~factpal(segment_ID_both)) %>%
+#   addLegend(position = 'topright', 
+#             #colors = c('red'), 
+#             #labels = c('static'),
+#             pal = factpal,
+#             values = mvmt_data_wgs$segment_ID_both,
+#             title = 'Segments - filtered statics and small')
+# 
+# # Plot the leaflet object m
+# m
 ```
 
 
