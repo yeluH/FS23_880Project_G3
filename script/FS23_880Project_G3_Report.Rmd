@@ -1,7 +1,7 @@
 ---
 title: "GEO880-G3-Report"
 author: "Martine Besse & Yelu He"
-date: "2023-06-26"
+date: "2023-06-28"
 always_allow_html: true
 output:
   html_document:
@@ -45,6 +45,12 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
+# Machine learning
+check_pkg("caTools")
+check_pkg("class")
+check_pkg("forecast")
+check_pkg("MLmetrics")
+check_pkg("randomForest")
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
@@ -52,9 +58,9 @@ rmdcountAddin()
 
 #DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-#data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -1261,7 +1267,7 @@ mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
     isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
     isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
     isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
-    isHighAltitude = (sum(isClosetoCables) / n() * 100 ) > 80.0
+    isHighAltitude = (sum(isHighAltitude) / n() * 100 ) > 80.0
     )
 mvmt_seg_annotations_summarized %>% View()
 ```
@@ -1440,8 +1446,207 @@ m
 
 
 ## Machine Learning
-
 ...
+#### KNN algorithms
+```{r}
+# Drop geometry
+
+
+
+# Merge all variables
+mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
+                  st_drop_geometry(mvmt_seg_annotations_summarized), 
+                  by = c('segment_ID_both', 'source', 'tmode_manual', 'duration_secs', 'static',
+                         'static_percent'))
+## 1459 RECORDS
+
+
+# Save the file from steps above
+write.csv(select(mvmt_all, -c("lst_geometry")), 
+          here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
+
+
+
+# Filter the 'unclassified' records
+mvmt_all <- mvmt_all %>% filter(tmode_manual != "unclassified")
+## 583 RECORDS
+
+# Label travel mode
+mvmt_all$label <- as.factor(mvmt_all$tmode_manual)
+mvmt_all <- na.omit(mvmt_all)
+## 561 RECORDS
+
+# Convert boolean to 0/1 value
+mvmt_all$isClosetoLakes <- as.integer(as.logical(mvmt_all$isClosetoLakes))
+mvmt_all$isClosetoRails <- as.integer(as.logical(mvmt_all$isClosetoRails))
+mvmt_all$isClosetoBus <- as.integer(as.logical(mvmt_all$isClosetoBus))
+mvmt_all$isClosetoTrams <- as.integer(as.logical(mvmt_all$isClosetoTrams))
+mvmt_all$isClosetoHighways <- as.integer(as.logical(mvmt_all$isClosetoHighways))
+mvmt_all$isClosetoCables <- as.integer(as.logical(mvmt_all$isClosetoCables))
+mvmt_all$isHighAltitude <- as.integer(as.logical(mvmt_all$isHighAltitude))
+
+# For machine learning, select factor columns only
+mvmt_all <- mvmt_all %>% dplyr::select(c("duration_secs", "static_percent", "space_duration",
+                                 "stepMean_midw_mean", "steplength_mean","steplength_sd", 
+                                 "speed_h_mean", "speed_h_sd", "speed_h_range", "speed_v_mean",
+                                 "speed_v_sd", "speed_v_range", "isClosetoLakes",
+                                 "isClosetoRails", "isClosetoBus", "isClosetoTrams",     
+                                 "isClosetoHighways", "isClosetoCables", "isHighAltitude","label"))
+# unique(mvmt_all$label)
+
+# Split into training and testing dataset
+split <- sample.split(mvmt_all, SplitRatio = 0.2)
+mvmt_all_test <- subset(mvmt_all, split==TRUE)
+mvmt_all_train <- subset(mvmt_all, split==FALSE)
+
+# For validation
+# for 10-fold cross validation 
+k_fold <- 10
+n3 <- nrow(mvmt_all_train)
+n_tail <- n3%/%k_fold
+rnd_n <- runif(n3)
+rank_n <- rank(rnd_n)
+chunk <- (rank_n - 1)%/%n_tail + 1
+chunk <- as.factor(chunk)
+mvmt_all_train_chunk <- mvmt_all_train
+mvmt_all_train_chunk$chunk <- chunk
+
+# Build models with 3 parameter sets
+for(m in 1:3){
+  knn_train_cva <- numeric(0)
+  knn_test_cva <- numeric(0)
+  
+  if (m == 1){
+      kv= 5
+    }
+    if (m == 2){
+      kv= 11
+    }
+    if (m == 3){
+      kv= 50
+    }
+  
+  for(i in 1:k_fold){
+    set.seed(21)
+    knn_train_pred <- knn(train = dplyr::select(mvmt_all_train_chunk[chunk != i, ], -label, -chunk),
+                          test = dplyr::select(mvmt_all_train, -label),
+                       cl = mvmt_all_train_chunk[chunk != i, ]$label, k=kv)
+    knn_test_pred <- knn(train = dplyr::select(mvmt_all_train_chunk[chunk != i, ], -label, -chunk),
+                       test = dplyr::select(mvmt_all_test, -label),
+                       cl = mvmt_all_train_chunk[chunk != i, ]$label, k=kv)
+    
+    knn_train_cva <- rbind(knn_train_cva, Accuracy(knn_train_pred, mvmt_all_train$label))
+    knn_test_cva <- rbind(knn_test_cva, Accuracy(knn_test_pred, mvmt_all_test$label))
+  }
+  print(knn_train_cva)
+  print(knn_test_cva)
+
+  if (m == 1){
+    knn_train_pred1 <- knn_train_pred
+    knn_test_pred1 <-  knn_test_pred
+    knn_train_cva1 <- knn_train_cva
+    knn_test_cva1 <- knn_test_cva 
+    knn_train_cva_mean1<-mean(knn_train_cva)
+    knn_test_cva_mean1<-mean(knn_test_cva)
+    }
+  if (m == 2){
+    knn_train_pred2 <- knn_train_pred
+    knn_test_pred2 <-  knn_test_pred
+    knn_train_cva2 <- knn_train_cva
+    knn_test_cva2 <- knn_test_cva 
+    knn_train_cva_mean2<-mean(knn_train_cva)
+    knn_test_cva_mean2<-mean(knn_test_cva)
+    }
+  if (m == 3){
+    knn_train_pred3 <- knn_train_pred
+    knn_test_pred3 <-  knn_test_pred
+    knn_train_cva3 <- knn_train_cva
+    knn_test_cva3 <- knn_test_cva 
+    knn_train_cva_mean3<-mean(knn_train_cva)
+    knn_test_cva_mean3<-mean(knn_test_cva)
+    }
+}
+plot(mvmt_all$label)
+ConfusionMatrix(knn_test_pred, mvmt_all_test$label)
+
+```
+
+#### Random Forest algorithm
+
+```{r}
+
+
+set.seed(100)
+mvmt_all <- mvmt_all %>% filter(label != "plane")
+
+# Split into training and testing dataset
+split <- sample.split(mvmt_all, SplitRatio = 0.2)
+mvmt_all_test <- subset(mvmt_all, split==TRUE)
+mvmt_all_train <- subset(mvmt_all, split==FALSE)
+
+# For validation
+# for 10-fold cross validation 
+k_fold <- 10
+n3 <- nrow(mvmt_all_train)
+n_tail <- n3%/%k_fold
+rnd_n <- runif(n3)
+rank_n <- rank(rnd_n)
+chunk <- (rank_n - 1)%/%n_tail + 1
+chunk <- as.factor(chunk)
+
+mvmt_all_train_rf_chunk <- mvmt_all_train
+mvmt_all_train_rf_chunk$chunk <- chunk
+mvmt_all_train_rf_chunk$label <- as.factor(mvmt_all_train_rf_chunk$label)
+
+# Build 3 models with different parameter sets
+for(m in 1:3){ # Loop through the different models
+  if (m == 1){
+      ntree_value= 20}
+  if (m == 2){
+      ntree_value= 40}
+  if (m == 3){
+      ntree_value= 80}
+  rf_train_cva <- numeric(0)
+  rf_test_cva <- numeric(0)
+  for(i in 1:k_fold){
+    set.seed(21)
+    rf <- randomForest(x = dplyr::select(mvmt_all_train_rf_chunk[chunk != i, ], -label, -chunk), 
+                     y = mvmt_all_train_rf_chunk[chunk != i, ]$label, 
+                     importance=TRUE, proximity=TRUE, ntree = ntree_value) 
+    rf_train_pred <- predict(rf, dplyr::select(mvmt_all_train, -label), type="class")
+    rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
+    rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
+    rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
+  }
+  print(rf_train_cva)
+  print(rf_test_cva)
+  
+  if (m == 1){
+    rf_train_pred1 <- rf_train_pred
+    rf_test_pred1 <-  rf_test_pred
+    rf_train_cva1 <- rf_train_cva
+    rf_test_cva1 <- rf_test_cva 
+    rf_train_cva_mean1<-mean(rf_train_cva)
+    rf_test_cva_mean1<-mean(rf_test_cva)
+    }
+  if (m == 2){
+    rf_train_pred2 <- rf_train_pred
+    rf_test_pred2 <-  rf_test_pred
+    rf_train_cva2 <- rf_train_cva
+    rf_test_cva2 <- rf_test_cva 
+    rf_train_cva_mean2<-mean(rf_train_cva)
+    rf_test_cva_mean2<-mean(rf_test_cva)
+    }
+  if (m == 3){
+    rf_train_pred3 <- rf_train_pred
+    rf_test_pred3 <-  rf_test_pred
+    rf_train_cva3 <- rf_train_cva
+    rf_test_cva3 <- rf_test_cva 
+    rf_train_cva_mean3<-mean(rf_train_cva)
+    rf_test_cva_mean3<-mean(rf_test_cva)
+    }}
+```
+
 
 # Results
 ...
