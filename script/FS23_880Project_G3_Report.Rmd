@@ -54,13 +54,13 @@ check_pkg("randomForest")
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
-rmdcountAddin()
+#rmdcountAddin()
 
 #DATA FOLDER
 #On Martine laptop:
-#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -781,18 +781,9 @@ Map general overview - per region (?):
 ...
 
 
-#### Computing trajectory derivatives
+#### Raw trajectory derivatives
 Here we will compute all necessary values to determine mean of transport: 
 
-- speed (steplength + timelag)
-- acceleration
-- sinuosity
-- turning angles
-- slope
-- (elevation speed?)
-- ...
-- region (mainly for visualisation)
- 
 ```{r}
 #compute trajectory derivatives
 
@@ -838,7 +829,7 @@ mvmt_data <- mvmt_data |>
     )
 ```
 
-#### Segmentize and deal with statics points
+#### Segmentize
 - remove statics (ex.3)
 - Add segment IDs (ex.3 - task 4)
 /!\ we could use the static points for means of transport.
@@ -927,7 +918,7 @@ for (i in 2:nrow(mvmt_data_segmentized)) {
   }
 }
 
-# ADD FINAL ID for segmentation
+# ADD PRE-FINAL ID for segmentation
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   mutate(
     segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
@@ -1138,59 +1129,41 @@ mvmt_data_filtered <- mvmt_data_add_static %>%
 5) Resegmentize per duration  
 (For Machine Learning)
 ```{r}
-mvmt_data_segmentized <- mvmt_data_segmentized %>%
+mvmt_data_split <- mvmt_data_filtered %>% 
   group_by(segment_ID_both) %>%
-  mutate(duration_secs = as.integer(difftime(max(datetime), min(datetime), units = "secs")))
+  mutate(
+    #remove timelag to next segment
+    timelag = case_when(timelag > 30 ~ 0,
+                        timelag <= -20 ~ 0,
+                        .default = timelag),
+    duration_index = case_when(
+      (duration_secs > 100) & (duration_secs %% 100) >= 50 ~ ceiling(cumsum(timelag)/100),
+      (duration_secs > 100) & (duration_secs %% 100) < 50 ~ ceiling((cumsum(timelag)/100)-1),
+    .default = 0
+    ),
+    segment_ID_final = paste(segment_ID_both, duration_index, sep = "-")
+  )
 
+mvmt_data_split %>% View()
 
-
-mvmt_data_filtered %>%
-  #loop
-    #sum the timelag
-    #when timelag > 100 secs, increment index
-timelag_sum = 0
-for (i in 2:nrow(mvmt_data_filtered)) {
-  timelag_i = timelag
-  if (mvmt_data_segmentized$gap[i-1] == TRUE) {
-    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1] + 1
-  } else {
-    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1]
-  }
-}
 ```
 
 
 6) final segmentization
 Note: static to improve.  
 ```{r}
-mvmt_seg_final <- mvmt_data_filtered %>% 
-  dplyr::select(-c("segment_ID_user", "segment_ID_gap", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
+mvmt_seg_final <- mvmt_data_split %>% 
+  dplyr::select(-c("segment_ID_user", "segment_ID_gap", "duration_index", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
 ))
-mvmt_seg_final %>% View()
-
-# Updated
-mvmt_seg_filtered_select <- mvmt_data_filtered %>% 
-  dplyr::select(-c( "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
-))
-
 ```
 
-
-7) Compute trajectories derivatives for each segment
+#### Computing trajectory derivatives per segments
+Compute trajectories derivatives for each segment
 --> to do after annotation.  
 ```{r}
 # SUMMARIZE
-
-mvmt_seg_summarized <- mvmt_seg_final %>%
-  summarize(
-    stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
-    steplength_mean = mean(steplength_m), 
-    speed_ms_mean = mean(speed_ms), 
-    lst_geometry = list(geometry))
-mvmt_seg_summarized %>% View()
-
-# Added 
-mvmt_seg_summary <- mvmt_seg_filtered_select %>%
+mvmt_seg_summary <- mvmt_seg_final %>%
+  group_by(segment_ID_final) %>%
   summarize(
     # Total segments
     #time_duration = duration_secs,
@@ -1212,6 +1185,7 @@ mvmt_seg_summary <- mvmt_seg_filtered_select %>%
     # Geometry
     lst_geometry = list(geometry))
 
+mvmt_seg_summary %>% View()
 ```
 
 
@@ -1231,7 +1205,7 @@ Q: -> faire convex-hull autour des points pour couper les datasets et limiter le
 
 ```{r}
 #ALL
-check_pkg("forecast")
+
 # 1) RAILS
 rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 joined_data <- mvmt_seg_final %>% 
@@ -1328,13 +1302,13 @@ m <- leaflet() %>%
   addCircleMarkers(data = visu_false,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_final
                      ),
                    color = 'red') %>%
   addCircleMarkers(data = visu_true,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_final
                      ),
                    color = 'blue') %>%
   addLegend(position = 'topright', 
@@ -1366,13 +1340,13 @@ m <- leaflet() %>%
   addCircleMarkers(data = visu_false,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_final
                      ),
                    color = 'red') %>%
   addCircleMarkers(data = visu_true,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_final
                      ),
                    color = 'blue') %>%
   addLegend(position = 'topright', 
@@ -1433,13 +1407,6 @@ Villars-sur-Ollon: 1200m (?)
 
 - general overview for each mean of transports
 
-```{r}
-mvmt_seg_final
-
-
-```
-
-
 Summary all segments from the mean of transport: 
 ```{r}
 #count of segments:
@@ -1479,29 +1446,29 @@ m
 
 ## Machine Learning
 ...
-#### KNN algorithms
+##### PREPARATION:  
 ```{r}
 # Drop geometry
 
+# # Merge all variables
+# mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
+#                   st_drop_geometry(mvmt_seg_annotations_summarized), 
+#                   by = c('segment_ID_final', 'source', 'tmode_manual', 'duration_secs', 'static',
+#                          'static_percent'))
+# ## 1459 RECORDS
+# 
+# 
+# # Save the file from steps above
+# write.csv(select(mvmt_all, -c("lst_geometry")), 
+#           here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
 
-
-# Merge all variables
-mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
-                  st_drop_geometry(mvmt_seg_annotations_summarized), 
-                  by = c('segment_ID_both', 'source', 'tmode_manual', 'duration_secs', 'static',
-                         'static_percent'))
-## 1459 RECORDS
-
-
-# Save the file from steps above
-write.csv(select(mvmt_all, -c("lst_geometry")), 
-          here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
-
-
+mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
 
 # Filter the 'unclassified' records
 mvmt_all <- mvmt_all %>% filter(tmode_manual != "unclassified")
 ## 583 RECORDS
+
+mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
 
 # Label travel mode
 mvmt_all$label <- as.factor(mvmt_all$tmode_manual)
@@ -1543,6 +1510,10 @@ chunk <- as.factor(chunk)
 mvmt_all_train_chunk <- mvmt_all_train
 mvmt_all_train_chunk$chunk <- chunk
 
+```
+
+#### KNN algorithms
+```{r}
 # Build models with 3 parameter sets
 for(m in 1:3){
   knn_train_cva <- numeric(0)
@@ -1606,30 +1577,6 @@ ConfusionMatrix(knn_test_pred, mvmt_all_test$label)
 #### Random Forest algorithm
 
 ```{r}
-
-
-set.seed(100)
-mvmt_all <- mvmt_all %>% filter(label != "plane")
-
-# Split into training and testing dataset
-split <- sample.split(mvmt_all, SplitRatio = 0.2)
-mvmt_all_test <- subset(mvmt_all, split==TRUE)
-mvmt_all_train <- subset(mvmt_all, split==FALSE)
-
-# For validation
-# for 10-fold cross validation 
-k_fold <- 10
-n3 <- nrow(mvmt_all_train)
-n_tail <- n3%/%k_fold
-rnd_n <- runif(n3)
-rank_n <- rank(rnd_n)
-chunk <- (rank_n - 1)%/%n_tail + 1
-chunk <- as.factor(chunk)
-
-mvmt_all_train_rf_chunk <- mvmt_all_train
-mvmt_all_train_rf_chunk$chunk <- chunk
-mvmt_all_train_rf_chunk$label <- as.factor(mvmt_all_train_rf_chunk$label)
-
 # Build 3 models with different parameter sets
 for(m in 1:3){ # Loop through the different models
   if (m == 1){
@@ -1642,8 +1589,8 @@ for(m in 1:3){ # Loop through the different models
   rf_test_cva <- numeric(0)
   for(i in 1:k_fold){
     set.seed(21)
-    rf <- randomForest(x = dplyr::select(mvmt_all_train_rf_chunk[chunk != i, ], -label, -chunk), 
-                     y = mvmt_all_train_rf_chunk[chunk != i, ]$label, 
+    rf <- randomForest(x = dplyr::select(mvmt_all_train_chunk[chunk != i, ], -label, -chunk), 
+                     y = mvmt_all_train_chunk[chunk != i, ]$label, 
                      importance=TRUE, proximity=TRUE, ntree = ntree_value) 
     rf_train_pred <- predict(rf, dplyr::select(mvmt_all_train, -label), type="class")
     rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
