@@ -58,9 +58,9 @@ check_pkg("rmdwc")
 
 #DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+# data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-#data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
@@ -1153,7 +1153,7 @@ mvmt_data_split %>% View()
 Note: static to improve.  
 ```{r}
 mvmt_seg_final <- mvmt_data_split %>% 
-  dplyr::select(-c("segment_ID_user", "segment_ID_gap", "duration_index", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
+  dplyr::select(-c("segment_ID_user", "segment_ID_both", "segment_ID_gap", "duration_index", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
 ))
 ```
 
@@ -1163,7 +1163,7 @@ Compute trajectories derivatives for each segment
 ```{r}
 # SUMMARIZE
 mvmt_seg_summary <- mvmt_seg_final %>%
-  group_by(segment_ID_final) %>%
+  group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
   summarize(
     # Total segments
     #time_duration = duration_secs,
@@ -1259,6 +1259,7 @@ mvmt_seg_final <- mvmt_seg_final %>% mutate(
 ```{r}
 # SUMMARIZE ANNOTATIONS
 mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
+  group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
   summarize(
     isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
     isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
@@ -1451,28 +1452,30 @@ m
 # Drop geometry
 
 # # Merge all variables
-# mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
-#                   st_drop_geometry(mvmt_seg_annotations_summarized), 
-#                   by = c('segment_ID_final', 'source', 'tmode_manual', 'duration_secs', 'static',
-#                          'static_percent'))
+mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
+                  st_drop_geometry(mvmt_seg_annotations_summarized),
+                  by = c('segment_ID_final', 'tmode_manual',
+                         'duration_secs', 'static_percent'))
 # ## 1459 RECORDS
 # 
 # 
 # # Save the file from steps above
-# write.csv(select(mvmt_all, -c("lst_geometry")), 
-#           here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
+write.csv(select(mvmt_all, -c("lst_geometry")), 
+           here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
 
-mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
+# read csv
+# mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
 
 # Filter the 'unclassified' records
 mvmt_all <- mvmt_all %>% filter(tmode_manual != "unclassified")
+
 ## 583 RECORDS
+# mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
 
-mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
-
+# Remove
+mvmt_all <- na.omit(mvmt_all)
 # Label travel mode
 mvmt_all$label <- as.factor(mvmt_all$tmode_manual)
-mvmt_all <- na.omit(mvmt_all)
 ## 561 RECORDS
 
 # Convert boolean to 0/1 value
@@ -1494,7 +1497,7 @@ mvmt_all <- mvmt_all %>% dplyr::select(c("duration_secs", "static_percent", "spa
 # unique(mvmt_all$label)
 
 # Split into training and testing dataset
-split <- sample.split(mvmt_all, SplitRatio = 0.2)
+split <- sample.split(mvmt_all, SplitRatio = 0.3)
 mvmt_all_test <- subset(mvmt_all, split==TRUE)
 mvmt_all_train <- subset(mvmt_all, split==FALSE)
 
@@ -1624,6 +1627,8 @@ for(m in 1:3){ # Loop through the different models
     rf_train_cva_mean3<-mean(rf_train_cva)
     rf_test_cva_mean3<-mean(rf_test_cva)
     }}
+ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
+
 ```
 
 
