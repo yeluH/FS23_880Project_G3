@@ -1460,8 +1460,8 @@ mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
 # 
 # 
 # # Save the file from steps above
-write.csv(select(mvmt_all, -c("lst_geometry")), 
-           here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
+# write.csv(dplyr::select(mvmt_all, -c("lst_geometry")), 
+#            here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
 
 # read csv
 # mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
