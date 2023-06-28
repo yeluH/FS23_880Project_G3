@@ -1,4 +1,20 @@
-TODO
+TODO 2
+-------
+0) Labelize data (Martine)
+1) Finish computing all trajectories derivatives (speed, sinuosity, etc. (see characteristic list)) (Yelu)
+   More attributes  
+   Try to avoid NA
+2) Annotate trajectories with proximity to environment datasets (TP network, topography) (Martine)
+   Change for Plane
+3) Summarize characteristics per mean of transport (Yelu)
+4) Machine Learning (:D :D :D Wunderbar)
+   Change parameter sets? for better performance (Yelu)
+   Visualize? with comparing test_pred/train_pred and true label (Martine)
+5) Paperwork (Martine & Yelu)
+6) Try knitting/rendering and update index.html (Yelu)
+
+
+TODO 1
 -------
 0) Labelize data
 
