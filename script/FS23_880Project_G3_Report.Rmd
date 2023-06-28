@@ -1129,7 +1129,32 @@ m
 ```
 
 
-5)
+5) Resegmentize per duration  
+(For Machine Learning)
+```{r}
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
+  group_by(segment_ID_both) %>%
+  mutate(duration_secs = as.integer(difftime(max(datetime), min(datetime), units = "secs")))
+
+
+
+mvmt_data_filtered %>%
+  #loop
+    #sum the timelag
+    #when timelag > 100 secs, increment index
+timelag_sum = 0
+for (i in 2:nrow(mvmt_data_filtered)) {
+  timelag_i = timelag
+  if (mvmt_data_segmentized$gap[i-1] == TRUE) {
+    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1] + 1
+  } else {
+    mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1]
+  }
+}
+```
+
+
+6) final segmentization
 Note: static to improve.  
 ```{r}
 mvmt_seg_final <- mvmt_data_filtered %>% 
@@ -1145,7 +1170,7 @@ mvmt_seg_filtered_select <- mvmt_data_filtered %>%
 ```
 
 
-5) Compute trajectories derivatives for each segment
+7) Compute trajectories derivatives for each segment
 --> to do after annotation.  
 ```{r}
 # SUMMARIZE
@@ -1200,7 +1225,7 @@ Q: -> faire convex-hull autour des points pour couper les datasets et limiter le
 
 ```{r}
 #ALL
-
+check_pkg("forecast")
 # 1) RAILS
 rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 joined_data <- mvmt_seg_final %>% 
@@ -1396,13 +1421,20 @@ Villars-sur-Ollon: 1200m (?)
 
 
 
-### Summarize characteristics of the means of transport
+## Summarize characteristics of the means of transport
 - Compute mean variables per segment (ex.2 task 5 (rolling windows))
 -> summarize the variables by mean of transports
 
 - general overview for each mean of transports
 
-Summary all segments from the mean of transport:  
+```{r}
+mvmt_seg_final
+
+
+```
+
+
+Summary all segments from the mean of transport: 
 ```{r}
 #count of segments:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
@@ -1440,8 +1472,8 @@ m
 
 
 ## Machine Learning
-
 ...
+
 
 # Results
 ...
