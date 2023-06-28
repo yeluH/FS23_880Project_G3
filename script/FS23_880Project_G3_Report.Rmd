@@ -45,19 +45,22 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
-# https://github.com/benmarwick/wordcountaddin
-# check_pkg("wordcountaddin") -> ma: does not work on my computer :(
 
+#https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
+check_pkg("rmdwc")
+rmdcountAddin()
 
 #DATA FOLDER
 #On Martine laptop:
-# data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # Criteria:
-length: 30'000 - 50'000  
+new length: 
+  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
+
 Report your work in a written project report. The report has two functions:  
 – It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.  
 – It will be used to evaluate and mark your project.
@@ -118,6 +121,15 @@ coords <- posmo |> st_coordinates()
 posmo <- posmo |> 
   mutate(E =  coords[,1], N = coords[,2])
 
+
+# Keep only Switzerland
+ch_ll <- c(2460666, 1069416)
+ch_ur <- c(2849000, 1300750)
+posmo <- posmo %>% 
+  filter((E > ch_ll[1] & E < ch_ur[1] & N > ch_ll[2] & N < ch_ur[2]))
+
+
+
 #update timezone
 posmo <- posmo %>%
   mutate(
@@ -132,17 +144,23 @@ posmo <- posmo %>%
 
 #Extract values from rasters:
 #https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
-
-# On both laptop
 dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
 
 rasValue <- extract(dhm25, posmo)
 posmo$H <- rasValue
 
+
 # #Adapt column order
 # col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry")
 # posmo <- posmo[, col_order]
 # posmo
+
+
+# REMOVE:
+# heights for plane
+# rmeove outside of Switzerland (Freiburg and Basel)
+
+
 ```
 
 #### Labelize posmo data
@@ -151,14 +169,21 @@ posmo$H <- rasValue
 # Add column for travel mode
 posmo$tmode_manual <- NA
 
-#select segments
+#select boats segments
 condition_boats <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
 
+#select planes segments
 condition_planes <- posmo$datetime > as.POSIXct("2023-06-17 11:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 12:22:00", tz = "Europe/Zurich")
 
+#select cable car segments
 condition_cable_cars <- 
-  posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:18:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:10:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 12:27:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:18:10", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:24:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 13:11:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 13:20:00", tz = "Europe/Zurich")
 
+# select ski lifts segments
 condition_ski_lifts <- 
   posmo$datetime > as.POSIXct("2023-04-12 09:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich") |
@@ -169,12 +194,29 @@ condition_ski_lifts <-
   posmo$datetime > as.POSIXct("2023-04-12 11:21:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:29:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 11:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:14:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:22:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:30:45", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:36:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:44:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:58:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:08:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:19:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:28:30", tz = "Europe/Zurich") | 
+  posmo$datetime > as.POSIXct("2023-04-13 10:40:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:51:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:28:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:33:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:43:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:48:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:56:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:06:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:14:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:23:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:28:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:30:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:38:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:06:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:14:30", tz = "Europe/Zurich")
 
+# select t-bar segments
 condition_t_bars <- 
   posmo$datetime > as.POSIXct("2023-04-12 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 10:33:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:54:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 11:02:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:19:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:26:45", tz = "Europe/Zurich")
 
+# select ski slopes segments
 condition_skis <- 
   posmo$datetime > as.POSIXct("2023-04-12 09:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:33:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 09:41:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 9:51:00", tz = "Europe/Zurich") |
@@ -187,41 +229,82 @@ condition_skis <-
   posmo$datetime > as.POSIXct("2023-04-12 11:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:49:30", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 13:54:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 13:57:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 14:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:10:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-12 14:18:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 14:48:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:14:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:19:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:22:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:30:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:36:45", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 09:44:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 09:58:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:08:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:17:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:28:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:40:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 10:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 10:54:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 11:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 11:25:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 15:40:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 15:59:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:24:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:28:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:36:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:43:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 9:48:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 09:56:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:06:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:14:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:23:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 10:30:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 10:38:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:06:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:14:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 11:26:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 11:42:30", tz = "Europe/Zurich")
 
+#select kick scooters segments
 condition_scooters <- 
   posmo$datetime > as.POSIXct("2023-05-04 07:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-04 07:42:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-24 22:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 22:10:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-24 19:48:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 20:00:00", tz = "Europe/Zurich")
 
+#select bikes segments
 condition_bikes <- 
   posmo$datetime > as.POSIXct("2023-05-02 08:31:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 08:36:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-02 11:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 12:04:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-02 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-02 18:04:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-05-15 15:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-15 16:32:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-05-15 15:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-15 16:32:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-01 07:37:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-01 07:53:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-01 18:38:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-01 18:52:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 07:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 08:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 17:32:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 17:50:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 18:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 18:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 18:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 18:35:00", tz = "Europe/Zurich")
 
+#select train segments
 condition_trains <- 
-  posmo$datetime > as.POSIXct("2023-03-30 17:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-03-30 17:52:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-05-26 18:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-26 19:15:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-05-09 8:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-09 10:55:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-28 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-28 12:50:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-06-09 19:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 21:30:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-03 22:15:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 00:22:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-09 12:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 12:48:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-11 02:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 02:45:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-12 07:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-12 07:53:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-06-14 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 17:42:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-06-06 09:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:00:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-06-06 09:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 08:06:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 10:02:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-16 18:48:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-16 19:11:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-18 12:45:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-18 16:33:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 07:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 07:43:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 15:27:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 17:53:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-03-31 16:23:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-03-31 16:47:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-03 21:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 00:22:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-06 17:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-06 17:57:00", tz = "Europe/Zurich") 
 
+#select trams segments
 condition_trams <- 
-  posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-06-09 17:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:22:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-09 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 13:54:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-06 11:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:23:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-05 18:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 19:03:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-05 23:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 23:40:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:57:00", tz = "Europe/Zurich")
+  posmo$datetime > as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 10:07:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 10:19:45", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 18:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 18:56:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-04 23:05:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-04 23:16:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-04 16:51:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 17:01:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-04 19:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 19:41:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-05 08:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-05 08:52:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-06 07:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-06 07:50:00", tz = "Europe/Zurich") 
 
+#select bus segments
 condition_bus <- 
   posmo$datetime > as.POSIXct("2023-06-09 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:31:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-24 19:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 19:49:00", tz = "Europe/Zurich") |
@@ -233,8 +316,20 @@ condition_bus <-
   posmo$datetime > as.POSIXct("2023-06-06 08:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 08:35:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-05 18:37:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-05 18:46:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-25 11:36:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 11:57:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-25 16:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 16:39:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-25 16:33:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 16:39:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-17 16:07:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 16:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-18 12:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-18 12:16:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-18 12:23:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-18 12:29:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-04 23:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-04 23:23:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 06:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 07:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 07:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 07:50:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-01 22:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-01 22:30:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 21:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 22:14:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-03-31 16:13:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-03-31 16:20:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-04 19:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-04 19:59:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-06 07:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-06 07:33:00", tz = "Europe/Zurich")
 
+#select walking segments
 condition_walks <- 
   posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-16 15:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:56:00", tz = "Europe/Zurich") |
@@ -252,8 +347,32 @@ condition_walks <-
   posmo$datetime > as.POSIXct("2023-04-12 09:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 09:12:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-12 18:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-12 18:50:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-25 11:57:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 12:05:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-04-25 15:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-04-25 15:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-25 15:50:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 08:43:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 08:46:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-13 18:05:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-13 18:15:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 13:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 13:25:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 10:19:45", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 10:24:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 18:56:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 19:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-16 18:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-16 18:45:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-16 21:41:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-16 22:23:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-17 15:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 16:04:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-17 16:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 16:28:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-17 22:31:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 22:45:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-18 12:16:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-18 12:19:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-18 12:29:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-18 12:33:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-04 17:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-04 18:12:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-04 22:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-04 23:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 15:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 15:23:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 17:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 18:02:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 18:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 18:09:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 19:47:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 20:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-31 21:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-31 21:55:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-10 18:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-10 18:45:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-10 22:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-10 22:18:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-11 11:51:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-11 11:56:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-11 15:28:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-11 15:36:00", tz = "Europe/Zurich")
 
+#select car segments
 condition_cars <- 
   posmo$datetime > as.POSIXct("2023-06-11 15:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 17:00:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-24 14:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-24 17:30:00", tz = "Europe/Zurich") |
@@ -261,7 +380,19 @@ condition_cars <-
   posmo$datetime > as.POSIXct("2023-06-09 21:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 22:30:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-14 07:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 08:00:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-14 17:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-14 18:10:00", tz = "Europe/Zurich") |
-  posmo$datetime > as.POSIXct("2023-06-13 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-13 19:15:00", tz = "Europe/Zurich") 
+  posmo$datetime > as.POSIXct("2023-06-13 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-13 19:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-15 14:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-15 21:41:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-15 07:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-15 08:04:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-16 23:06:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-16 23:40:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-17 14:34:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-17 14:42:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-04 17:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-04 17:59:00", tz = "Europe/Zurich") | 
+  posmo$datetime > as.POSIXct("2023-06-03 21:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-03 22:18:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-06-02 18:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-02 18:43:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-06 21:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-06 22:37:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-09 09:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-09 12:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-10 08:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-10 09:39:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-10 18:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-10 21:10:00", tz = "Europe/Zurich")
+  
 
 #final labelizing
 posmo <- posmo %>%
@@ -280,9 +411,16 @@ posmo <- posmo %>%
                                   condition_skis ~ 'ski',
                                   is.na(posmo$tmode_manual) == TRUE ~ 'unclassified'
                                   ))
+
+
+# Remove heights for plane (bc completely false):
+posmo$H[posmo$tmode_manual == "plane"] <- NA
+
+
 # select columns
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
 ```
+
 
 
 ### GPS data
@@ -708,7 +846,7 @@ GPS sampling rate: 5 sec
 Point to drop when we are done with the tests.  
 ```{r}
 #try on a sampled data
-mvmt_data2 <- mvmt_data #|>
+mvmt_data2 <- mvmt_data #|> filter(as.Date(datetime) == "2023-04-12")
   #filter(as.Date(datetime) == "2023-05-04")
   #filter(tmode_manual == "train")
 mvmt_data2
@@ -1058,81 +1196,102 @@ done:
 - calculate % per segment to attributes FALSE/TRUE to the segment
 -> add it in mvmt_data_summarized
 
-TODO:
--> to check with all data not only an extract
-
 Q: -> faire convex-hull autour des points pour couper les datasets et limiter le tps de calcul? (sur R)
 
-
-
-Buffers: should be big enough to get the stations (not all rails are mapped) (30m)
-Overlapp % 30m -> 70%
-
-Import the railways:  
 ```{r}
-rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
+#ALL
 
+# 1) RAILS
+rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
 joined_data <- mvmt_seg_final %>% 
   st_join(rails_shp, join = st_is_within_distance, 30)
 
 mvmt_seg_final$isClosetoRails <- !is.na(joined_data$xtf_id)
 
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
-
-rails_wgs <- rails_shp %>% st_transform(crs = 4326)
-
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = rails_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
-                   popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
-                     ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
-
-# Plot the leaflet object m
-m
-
-```
-
-
-Import the trams:  
-```{r}
+# 2) TRAMS
 trams_shp <- read_sf(here(data_folder, "railways", "trams_dissolved.shp")) %>% st_zm() 
-
 joined_data <- mvmt_seg_final %>% 
   st_join(trams_shp, join = st_is_within_distance, 20)
 
 mvmt_seg_final$isClosetoTrams <- !is.na(joined_data$xtf_id)
 
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoTrams) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoTrams) %>% st_transform(crs = 4326)
+# 3) BUS STOPS
+bus_shp <- read_sf(here(data_folder, "stops", "bus_stops_dissolved.shp")) %>% st_zm() 
+joined_data <- mvmt_seg_final %>%
+  st_join(bus_shp, join = st_is_within_distance, 50)
 
-trams_wgs <- trams_shp %>% st_transform(crs = 4326)
+mvmt_seg_final$isClosetoBus <- !is.na(joined_data$fid)
 
+# 4) HIGHWAYS
+roads_shp <- read_sf(here(data_folder, "roads", "roads_dissolved.shp")) %>% st_zm()
+joined_data <- mvmt_seg_final %>%
+  st_join(roads_shp, join = st_is_within_distance, 20)
+
+mvmt_seg_final$isClosetoHighways <- !is.na(joined_data$UUID)
+
+# 5) LAKES
+lakes_shp <- read_sf(here(data_folder, "lakes", "large_lakes_dissolved.shp")) %>% st_zm() 
+joined_data <- mvmt_seg_final %>%
+  st_join(lakes_shp, join = st_is_within_distance, 1)
+
+mvmt_seg_final$isClosetoLakes <- !is.na(joined_data$UUID)
+
+# 6) SKI LIFTS AND CABLE CARS
+cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar.shp")) %>% st_zm()
+joined_data <- mvmt_seg_final %>%
+  st_join(cables_shp, join = st_is_within_distance, 10)
+
+mvmt_seg_final$isClosetoCables <- !is.na(joined_data$UUID)
+
+# 7) HIGH ALTITUDES
+mvmt_seg_final <- mvmt_seg_final %>% mutate(
+  isHighAltitude = case_when(H >= 1200.0 ~ TRUE,
+                             .default = FALSE)
+)
+```
+
+
+```{r}
+# SUMMARIZE ANNOTATIONS
+mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
+  summarize(
+    isClosetoLakes =  (sum(isClosetoLakes) / n() * 100 ) > 0,
+    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
+    isClosetoBus =  (sum(isClosetoBus) / n() * 100 ) > 30.0,
+    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
+    isClosetoHighways =  (sum(isClosetoHighways) / n() * 100 ) > 80.0,
+    isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
+    isHighAltitude = (sum(isClosetoCables) / n() * 100 ) > 80.0
+    )
+mvmt_seg_annotations_summarized %>% View()
+```
+
+```{r}
+#VISUALISATION
+
+#Visualisation of proximity for rails:
+
+# isClosetoRails
+# isClosetoTrams
+# isClosetoLakes
+# isClosetoHighways
+# isClosetoCables
+# isHighAltitude
+
+visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+
+wgs <- rails_shp %>% st_transform(crs = 4326)
+#wgs <- trams_shp %>% st_transform(crs = 4326)
+#wgs <- lakes_shp %>% st_transform(crs = 4326)
+#wgs <- roads_shp %>% st_transform(crs = 4326)
+#wgs <- cables_shp %>% st_transform(crs = 4326)
+# ALTITUDE = NO WGS
 
 m <- leaflet() %>%
   addTiles() %>%  # Add default OpenStreetMap map tiles
   addPolylines(
-    data = trams_wgs,
+    data = wgs,
     color = 'green'
   ) %>%
   addCircleMarkers(data = visu_false,
@@ -1157,82 +1316,84 @@ m
 ```
 
 ```{r}
-# SUMMARIZE
-mvmt_seg_final_summarized <- mvmt_seg_final %>%
-  summarize(
-    isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0,
-    isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0,
-    stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE), 
-    steplength_mean = mean(steplength_m), 
-    speed_ms_mean = mean(speed_ms), 
-    lst_geometry = list(geometry))
-mvmt_seg_final_summarized %>% View()
+#VISUALISATION FOR BUS
+
+#VISU
+bus_wgs <- read_sf(here(data_folder, "stops", "bus_stops.shp")) %>% st_zm() %>% st_transform(crs = 4326)
+
+#Visualisation of proximity:
+visu_true <- mvmt_seg_final |> filter(isClosetoBus) %>% st_transform(crs = 4326)
+visu_false <- mvmt_seg_final |> filter(!isClosetoBus) %>% st_transform(crs = 4326)
+
+
+m <- leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap map tiles
+  addCircleMarkers(
+    data = bus_wgs,
+    color = 'green'
+  ) %>%
+  addCircleMarkers(data = visu_false,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     ),
+                   color = 'red') %>%
+  addCircleMarkers(data = visu_true,
+                   radius = 0.2,
+                   popup = paste(
+                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both
+                     ),
+                   color = 'blue') %>%
+  addLegend(position = 'topright', 
+            colors = c('blue', 'red'), 
+            labels = c('close', 'not close'),
+            title = 'Proximity to environment')
+
+# Plot the leaflet object m
+m
 ```
 
 
-<!-- NACHSTE: (lake?)   -->
-<!-- ```{r} -->
-<!-- #mvmt_data_sfc <- mvmt_data %>% st_bbox() %>% st_as_sfc() -->
-<!-- #extract <- mvmt_data[1:100,] -->
-<!-- extract <- mvmt_seg_final #%>% filter(tmode_manual == "tram") -->
-<!-- trams_shp <- read_sf(here(data_folder, "railways", "trams_dissolved.shp")) %>% st_zm()  -->
 
-<!-- joined_data <- extract %>%  -->
-<!--   st_join(trams_shp, join = st_is_within_distance, 20) -->
-
-<!-- extract$isClosetoTrams <- !is.na(joined_data$xtf_id) -->
-
-<!-- # SUMMARIZE -->
-<!-- extract_summarized <- extract %>% -->
-<!--   summarize( -->
-<!--     isClosetoRails =  (sum(isClosetoRails) / n() * 100 ) > 70.0, -->
-<!--     isClosetoTrams =  (sum(isClosetoTrams) / n() * 100 ) > 70.0, -->
-<!--     stepMean_midw_mean = mean(stepMean_midw, na.rm=TRUE),  -->
-<!--     steplength_mean = mean(steplength_m),  -->
-<!--     speed_ms_mean = mean(speed_ms),  -->
-<!--     lst_geometry = list(geometry)) -->
-<!-- extract_summarized %>% View() -->
-
-<!-- #filter extract -->
-<!-- lst_extract <- c("1-60-1", #huge gap to filter out. -->
-<!-- "1-99-1") #<- Olten, not all rails of the stations are represented. -->
-
-<!-- extract_f <- extract #%>% filter(segment_ID_both %in% lst_extract) -->
-
-<!-- #Visualisation of proximity: -->
-<!-- visu_true <- extract_f |> filter(isClosetoTrams) %>% st_transform(crs = 4326) -->
-<!-- visu_false <- extract_f |> filter(!isClosetoTrams) %>% st_transform(crs = 4326) -->
-
-<!-- trams_wgs <- trams_shp %>% st_transform(crs = 4326) -->
+Blabla to sort:  
 
 
 
-<!-- m <- leaflet() %>% -->
-<!--   addTiles() %>%  # Add default OpenStreetMap map tiles -->
-<!--   addPolylines( -->
-<!--     data = trams_wgs, -->
-<!--     color = 'green' -->
-<!--   ) %>% -->
-<!--   addCircleMarkers(data = visu_false, -->
-<!--                    radius = 0.2, -->
-<!--                    popup = paste( -->
-<!--                      "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_both -->
-<!--                      ), -->
-<!--                    color = 'red') %>% -->
-<!--   addCircleMarkers(data = visu_true, -->
-<!--                    radius = 0.2, -->
-<!--                    popup = paste( -->
-<!--                      "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_both -->
-<!--                      ), -->
-<!--                    color = 'blue') %>% -->
-<!--   addLegend(position = 'topright',  -->
-<!--             colors = c('blue', 'red'),  -->
-<!--             labels = c('close', 'not close'), -->
-<!--             title = 'Proximity to environment') -->
+IMPORT highways:
+From swissTLM3D.
+We selected only highways and autostrasse, because on this road, only cars are allowed, which would be helpful to determine cars segments.
 
-<!-- # Plot the leaflet object m -->
-<!-- m -->
-<!-- ``` -->
+IMPORT LAKES:
+
+Lakes have first been selected ("surface">=10000000) for the ones that could have boats.Smaller likes could also have boats, but for calcualtion performances we only took the biggest lakes in our calculations. Then dissolved.
+
+
+Ski lifts and cable cars:
+
+
+BUS STOPS
+source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
+sort all the stops which contains "bus" as Type of transport.
+
+386 TRUE / 1374 total
+
+alternative: get lines from OSM.  
+
+
+
+MOUNTAIN AREAS:  
+stations de basses altitude (Jura, ...)
+Abbaye: 1000m
+Les Rasses: 1100m
+Tuffes: 1200m
+
+Les pléaides: 1200m
+Villars-sur-Ollon: 1200m (?)
+
+-> lets take 1200m
+
+
+
 
 
 ### Summarize characteristics of the means of transport
