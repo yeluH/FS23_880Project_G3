@@ -420,7 +420,7 @@ posmo <- posmo %>%
 
 
 # Remove heights for plane (bc completely false):
-posmo$H[posmo$tmode_manual == "plane"] <- NA
+posmo$H[posmo$tmode_manual == "plane"] <- 0.0
 
 
 # select columns
@@ -1450,11 +1450,9 @@ m
 ```{r}
 # Drop geometry
 
-# # Merge all variables
-# mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
-#                   st_drop_geometry(mvmt_seg_annotations_summarized), 
-#                   by = c('segment_ID_final', 'source', 'tmode_manual', 'duration_secs', 'static',
-#                          'static_percent'))
+# Merge all variables
+mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary), st_drop_geometry(mvmt_seg_annotations_summarized),
+                  by = c('segment_ID_final'))
 # ## 1459 RECORDS
 # 
 # 
@@ -1462,13 +1460,13 @@ m
 # write.csv(select(mvmt_all, -c("lst_geometry")), 
 #           here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
 
-mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
+#mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
 
 # Filter the 'unclassified' records
 mvmt_all <- mvmt_all %>% filter(tmode_manual != "unclassified")
 ## 583 RECORDS
 
-mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
+#mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
 
 # Label travel mode
 mvmt_all$label <- as.factor(mvmt_all$tmode_manual)
