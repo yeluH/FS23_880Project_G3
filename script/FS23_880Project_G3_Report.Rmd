@@ -58,12 +58,12 @@ check_pkg("rmdwc")
 
 #DATA FOLDER
 #On Martine laptop:
-# data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+# data_folder <- "D:/GEO880/Project"
 ```
 
-# Criteria:
+# (Criteria):
 new length: 
   Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
 
@@ -79,102 +79,103 @@ Your report shall:
 
 Good example: https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html
 
-# Introduction
-## Research questions
+# 1. Introduction
+## 1.1 Research questions
 1. Do the characteristics of movement trajectories differ beetween different travel modes?
 2. Could the characteristics be used to identify travel mode?
 3. How to identify different travel modes with movement trajectories? Could a identification model be built?
 4. How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
 
-## Background
+## 1.2 Background
 Literature review
 - list of travel modes considered in our study.
 - characteristics specific to the mean of transport
 
-# Methodology
+
+
+## 1.3 Datasets
+We will work with two blabla datasets (take in the proposal).
+
+# 2. Methodology
 First the trajectories data will be prepared to be fed for machine learning: data cleaning, labelizing, values extracted.
+
+To train a machine learning to classify the segments in the correct categories, we first need to clean and prepare our data.  
+Firstly, the points with be manually labelized with the correct transport modes.  Secondly, the points will be segmentized based on time gaps (error in recording or simply break in movement (night))
+Then, trajectory derivatives such as speed, sinuosity will be calculated. 
 
 Labels list: boat, train, etc.
 
-## Preprocessing of trajectories data
-### Posmo data
-- 30 March to 18 June (~169 days)
-- clean GPS data and add basic common columns attributes
-- labelize data
-- overview (here or maybe later?)
-...
+Trajectories derivatives useful to determine mean of transport: for ex. mean speed, sinuosity (train, cable car, ski lift -> not much sinuosity). Walk, car, ski -> more sinuosity.
 
+Here list the derivatives ?
 
-#### Import, clean posmo data
-```{r}
-#import and convert to sf object
+We need Height for:---
 
+## 2.1 Trajectories datasets
+- Posmo dataset starts from 30 March to 18 June (~169 days). Time rate 10 sec
+- GPS: ...
+### 2.1.1 Data preparation
+We are working with two trajectory points datasets: one from posmo, and one from a GPS tracker. Some inital cleanings and adaptations are required to create an homogen trajectory dataset.
+In both datasets, the columns were prepared in sort to have the basic attributes:  
+- source (posmo or GPS)  
+- datetime  
+- tmode_manual 
+- E, N, H 
+- geometry 
+
+#### Posmo data  
+**Data cleaning and basic processing**  
+The trajectory points downloaded from posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. Unfortunately, posmo platform does not give the possibility to get the recorded altitude of the points. To have an approximation of the height, the altitudes were extracted thanks to the Digital Height Model DHM25 provided by swisstopo. The DHM25 gives altitude every 25m. We estimated the precision will be enough for our project. DHM25 is available as a raster. To save calculation time in the project, this was first preprocessed on QGIS to be converted in the new Swiss projection system (MN95, previously MN03).  
+
+An issue with this method, is that this extraction gives the altitude on the ground, and not of the user. This is of poor impact for terrestrial movements, such as walks, trains, etc. as the differences is not more than 5 meters. As we look at ranges (above ~ 1200m) or relative derivatives (slope, speed), this is not too much influence.  
+However, this is more important for plane: the altitude of the user cannot possibly be taken this way. Therefore, no altitude value were assigned to plane segments.  
+
+```{r import_posmo , warning = FALSE, message = FALSE}
+# import and convert to sf object
 posmo <- read_delim(here(data_folder, "posmo_2023-06-18.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
-#clean and add columns
-posmo$source <- "posmo"
-
+# Remove/rename columns
 posmo <- posmo %>% 
        rename("tmode_posmo" = "transport_mode")
-
-posmo$tmode_manual <- NA
-
 to_remove <- c("place_name", "lon_x", "lat_y", "user_id")
 posmo <- posmo[ , !(names(posmo) %in% to_remove)]
 
-#add East and North columns
+# Add source
+posmo$source <- "posmo"
+
+# Add column for travel mode
+posmo$tmode_manual <- NA
+
+# add East and North columns
 coords <- posmo |> st_coordinates()
 posmo <- posmo |> 
   mutate(E =  coords[,1], N = coords[,2])
 
-
-# Keep only Switzerland
+# Filter points outside of Switzerland
 ch_ll <- c(2460666, 1069416)
 ch_ur <- c(2849000, 1300750)
 posmo <- posmo %>% 
   filter((E > ch_ll[1] & E < ch_ur[1] & N > ch_ll[2] & N < ch_ur[2]))
 
-
-
-#update timezone
+# Update the timezone
 posmo <- posmo %>%
   mutate(
     datetime = datetime %>% with_tz(tzone = "Europe/Zurich")
   )
 
 # Add heights
-# The height comes from the Digital height model DHM25 provided by swisstopo. The raster has been preprocessed on QGIS to be converted into the epsg 2056 (previously 21781) to save calculation time.
-# The resolution is 25m. To have more precise information, we could look at the swiss3DAlti if needed.  
-# Simplification: we did not consider height of soil compared to height of person or public transport.  
-# As it is a relative variable to calculate slope, it does not matter.
 
-#Extract values from rasters:
-#https://gisday.wordpress.com/2014/03/24/extract-raster-values-from-points-using-r/comment-page-1/
+## Extract values from rasters:
 dhm25 <- raster(here(data_folder, "dhm25_raster", "dhm25_2056.tif"))
-
 rasValue <- extract(dhm25, posmo)
 posmo$H <- rasValue
 
-
-# #Adapt column order
-# col_order <- c("source", "datetime", "weekday", "tmode_posmo", "tmode_manual" ,"E", "N", "H", "timelag", "steplength_m", "speed_ms", "slope", "geometry")
-# posmo <- posmo[, col_order]
-# posmo
-
-
-# REMOVE:
-# heights for plane
-# rmeove outside of Switzerland (Freiburg and Basel)
-
-
 ```
 
-#### Labelize posmo data
+**Labelizing data**
+In the posmo dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
 
-```{r}
-# Add column for travel mode
-posmo$tmode_manual <- NA
-
+```{r labelize_posmo, echo = TRUE, warning = FALSE, message = FALSE}
 #select boats segments
 condition_boats <- posmo$datetime > as.POSIXct("2023-05-14 13:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-14 14:21:00", tz = "Europe/Zurich")
 
@@ -418,20 +419,26 @@ posmo <- posmo %>%
                                   is.na(posmo$tmode_manual) == TRUE ~ 'unclassified'
                                   ))
 
-
 # Remove heights for plane (bc completely false):
 posmo$H[posmo$tmode_manual == "plane"] <- 0.0
-
 
 # select columns
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
 ```
 
+```{r summary_posmo, echo = TRUE, warning = FALSE, message = FALSE}
+#count of of points per means of transports:
+posmo_tmode_count <- posmo %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
+
+knitr::kable(posmo_tmode_count %>% st_drop_geometry(),
+caption = "Number of points labelized per mode of transport - posmo")
+```
 
 
-### GPS data
+#### GPS data
+**Data cleaning and basic processing**  
+The trajectory points recorded on posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. No further preparation were required. 
 
-#### Data cleaning and basic processing
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
 gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_all.csv"), ";")
@@ -461,19 +468,15 @@ colnames(gps_data)[8] <- "H"
 # Add column for travel mode
 gps_data$tmode_manual <- NA
 
-
 gps_data <- dplyr::select(gps_data, c("source", "datetime", "N", "E", "H", "geometry", "tmode_manual"))
-# dataFolder   <- here::here("D:/GEO880/Project/")
-# zurich_map <- st_read(file.path(dataFolder, "stadtkreis/stadtkreis/Stadtkreis.shp"))
-# zurich_map <- st_transform(zurich_map, epsg = 2056)
-
 ```
 
 
-#### Labelizing data
+**Labelizing data**
+In the GPS tracker dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
+
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Conditions for different travel modes
-
 
 
 condition_bus <- 
@@ -687,29 +690,77 @@ gps_data <- gps_data %>%
                                  ))
 ```
 
-- overview
-...
+```{r summary_posmo, echo = TRUE, warning = FALSE, message = FALSE}
+#count of of points per means of transports:
+gps_tmode_count <- gps_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
 
-### Merge Posmo and GPS tracker
-- Compute new variables: timelag, steplength, speed, acceleration, slope, etc.
-- remove statics (ex.3)
-- Add segment IDs (ex.3 - task 4)
+knitr::kable(gps_tmode_count %>% st_drop_geometry(),
+caption = "Number of points labelized per mode of transport - GPS tracker")
+```
 
-```{r}
+
+### 2.1.2 Overview of trajectories datasets
+**Merge GPS tracker and Posmo datasets**
+
+```{r merge_posmo_gps, echo = TRUE, warning = FALSE, message = FALSE}
 #here merge with gps tracker
 mvmt_data <- rbind(posmo, gps_data)
 unique(mvmt_data$tmode_manual)
 col_order <- c("source", "datetime", "tmode_manual" ,"E", "N", "H", "geometry")
 mvmt_data <- mvmt_data[, col_order]
 mvmt_data
-
 ```
 
-#### Overview of Posmo and GPS tracker datasets:
+```{r add_region, echo = TRUE, warning = FALSE, message = FALSE}
+# add regions (for visualisation)
+#Zurich
+zh_ll <- c(2674900, 1244000)
+zh_ur <- c(2692100, 1260300)
 
-Map general overview - two users:  
+#Waadt
+wt_ll <- c(2480000, 1127600)
+wt_ur <- c(2575200, 1195100)
+
+#wallis
+ws_ll <- c(2538000, 1076875)
+ws_ur <- c(2661500, 1153125)
+
+mvmt_data$region <- NA
+mvmt_data <- mvmt_data |> 
+  mutate(
+    region = case_when(
+      E > zh_ll[1] & E < zh_ur[1] & N > zh_ll[2] & N < zh_ur[2] ~ 'Zurich', 
+      E > wt_ll[1] & E < wt_ur[1] & N > wt_ll[2] & N < wt_ur[2] ~ 'Waadt',
+      E > ws_ll[1] & E < ws_ur[1] & N > ws_ll[2] & N < ws_ur[2] ~ 'Wallis'
+      )
+    )
+```
+
+Here is the final total of recorded points and the distribution within the mean of transport: 
+
+
+```{r count_points_tot, echo = TRUE, warning = FALSE, message = FALSE}
+#count of points:
+tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
+
+knitr::kable(tmode_count %>% st_drop_geometry(),
+caption = "Number of points labelized per mode of transport")
+```
+
+**Map general overview - two users:**  
+
+```{r count_points_tot, echo = TRUE, warning = FALSE, message = FALSE}
+# Add CH and Kanton borders to understand the map.
+ggplot(mvmt_data, aes(E, N, color = source)) +
+  geom_point() +
+  #geom_path() +
+  coord_equal() +
+  theme(legend.position = "none") +
+  labs(subtitle = "All points")
+```
+
 ```{r}
-#map overview
+#map overview -> too much points = too slow, to remove.
 mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326)
 
 m <- leaflet() %>%
@@ -770,7 +821,6 @@ m
 ```
 
 
-
 Map general overview - posmo user:  
 ...
 
@@ -780,6 +830,16 @@ Map general overview - GPS tracker user:
 Map general overview - per region (?):  
 ...
 
+
+
+### 2.1.2 Segmentation
+- remove statics (ex.3)
+- Add segment IDs (ex.3 - task 4)
+/!\ we could use the static points for means of transport.
+...
+
+posmo sampling rate: 10 sec
+GPS sampling rate: 5 sec
 
 #### Raw trajectory derivatives
 Here we will compute all necessary values to determine mean of transport: 
@@ -804,40 +864,6 @@ mvmt_data <- mvmt_data %>% filter(timelag != 0)
 ```
 
 
-```{r}
-# add regions
-#Zurich
-zh_ll <- c(2674900, 1244000)
-zh_ur <- c(2692100, 1260300)
-
-#Waadt
-wt_ll <- c(2480000, 1127600)
-wt_ur <- c(2575200, 1195100)
-
-#wallis
-ws_ll <- c(2538000, 1076875)
-ws_ur <- c(2661500, 1153125)
-
-mvmt_data$region <- NA
-mvmt_data <- mvmt_data |> 
-  mutate(
-    region = case_when(
-      E > zh_ll[1] & E < zh_ur[1] & N > zh_ll[2] & N < zh_ur[2] ~ 'Zurich', 
-      E > wt_ll[1] & E < wt_ur[1] & N > wt_ll[2] & N < wt_ur[2] ~ 'Waadt',
-      E > ws_ll[1] & E < ws_ur[1] & N > ws_ll[2] & N < ws_ur[2] ~ 'Wallis'
-      )
-    )
-```
-
-#### Segmentize
-- remove statics (ex.3)
-- Add segment IDs (ex.3 - task 4)
-/!\ we could use the static points for means of transport.
-...
-
-posmo sampling rate: 10 sec
-GPS sampling rate: 5 sec
-
 
 0) SAMPLE DATA FOR TRYING IT OUT  
 Point to drop when we are done with the tests.  
@@ -849,7 +875,7 @@ mvmt_data2 <- mvmt_data #|> filter(as.Date(datetime) == "2023-04-12")
 mvmt_data2
 ```
 
-
+#### Pre-segmentation: gap, user and labelized transport mode
 1) Detect gaps in recording
 
 ```{r}
@@ -997,6 +1023,7 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
 # m
 ```
 
+#### Remove static points
 3) Add statics info
 
 ```{r}
@@ -1125,7 +1152,7 @@ mvmt_data_filtered <- mvmt_data_add_static %>%
 # m
 ```
 
-
+#### Final segmentation: duration
 5) Resegmentize per duration  
 (For Machine Learning)
 ```{r}
@@ -1157,7 +1184,7 @@ mvmt_seg_final <- mvmt_data_split %>%
 ))
 ```
 
-#### Computing trajectory derivatives per segments
+### 2.1.3 Trajectories derivatives
 Compute trajectories derivatives for each segment
 --> to do after annotation.  
 ```{r}
@@ -1190,7 +1217,7 @@ mvmt_seg_summary %>% View()
 
 
 
-#### Annotate trajectories with environment datasets
+### 2.1.4 Trajectories annotation
 - datasets descriptions
 - annotate trajectories
 
@@ -1402,7 +1429,7 @@ Villars-sur-Ollon: 1200m (?)
 
 
 
-## Summarize characteristics of the means of transport
+## 2.2 Summarized characteristics of transport modes
 - Compute mean variables per segment (ex.2 task 5 (rolling windows))
 -> summarize the variables by mean of transports
 
@@ -1445,9 +1472,9 @@ m
 
 
 
-## Machine Learning
+## 2.3 Machine Learning
 ...
-##### PREPARATION:  
+### 2.3.1 Preparation:  
 ```{r}
 # Drop geometry
 
@@ -1520,7 +1547,7 @@ mvmt_all_train_chunk$chunk <- chunk
 
 ```
 
-#### KNN algorithms
+### 2.3.2 KNN algorithms
 ```{r}
 # Build models with 3 parameter sets
 for(m in 1:3){
@@ -1582,7 +1609,7 @@ ConfusionMatrix(knn_test_pred, mvmt_all_test$label)
 
 ```
 
-#### Random Forest algorithm
+### 2.3.3 Random Forest algorithm
 
 ```{r}
 # Build 3 models with different parameter sets
@@ -1638,20 +1665,24 @@ ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
 
 
 
-# Results
+# 3. Results
 ...
 
-# Discussion
+# 4. Discussion
+## 4.1 RQ
 - Answer the 4 RQ
 
-## Problems encoutered / challenges
+## 4.2 Problems encoutered / challenges
 - posmo map matching
 
-## Limitations
+## 4.3 Limitations
 ...
 
-# Conclusion
+# 5. Conclusion
 ...
 
+# 6. References
+
+- DHM25 Swisstopo: https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html
 
 
