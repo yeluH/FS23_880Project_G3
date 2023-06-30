@@ -96,6 +96,18 @@ Literature review
 ## 1.3 Datasets
 We will work with two blabla datasets (take in the proposal).
 
+```{r datasets}
+# Import the datasets
+ch_boundaries <- read_sf(here(data_folder, "boundaries", "CH_boundaries.shp")) %>% st_zm()
+
+Kanton_boundaries <- read_sf(here(data_folder, "boundaries", "Kanton_boundaries.shp")) %>% st_zm() 
+
+waadt <- Kanton_boundaries %>% filter(KANTONSNUM == 22)
+
+zh_commune <- read_sf(here(data_folder, "boundaries", "ZH_gemeinde.shp")) %>% st_zm() 
+```
+
+
 # 2. Methodology
 First the trajectories data will be prepared to be fed for machine learning: data cleaning, labelizing, values extracted.
 
@@ -114,7 +126,8 @@ We need Height for:---
 ## 2.1 Trajectories datasets
 - Posmo dataset starts from 30 March to 18 June (~169 days). Time rate 10 sec
 - GPS: ...
-### 2.1.1 Data preparation
+
+### 2.1.1 Data preparation 
 We are working with two trajectory points datasets: one from posmo, and one from a GPS tracker. Some inital cleanings and adaptations are required to create an homogen trajectory dataset.
 In both datasets, the columns were prepared in sort to have the basic attributes:  
 - source (posmo or GPS)  
@@ -123,7 +136,7 @@ In both datasets, the columns were prepared in sort to have the basic attributes
 - E, N, H 
 - geometry 
 
-#### Posmo data  
+#### Posmo data 
 **Data cleaning and basic processing**  
 The trajectory points downloaded from posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. Unfortunately, posmo platform does not give the possibility to get the recorded altitude of the points. To have an approximation of the height, the altitudes were extracted thanks to the Digital Height Model DHM25 provided by swisstopo. The DHM25 gives altitude every 25m. We estimated the precision will be enough for our project. DHM25 is available as a raster. To save calculation time in the project, this was first preprocessed on QGIS to be converted in the new Swiss projection system (MN95, previously MN03).  
 
@@ -172,8 +185,7 @@ posmo$H <- rasValue
 
 ```
 
-**Labelizing data**
-In the posmo dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
+**Labelizing data**   
 
 ```{r labelize_posmo, echo = TRUE, warning = FALSE, message = FALSE}
 #select boats segments
@@ -277,6 +289,11 @@ condition_bikes <-
 
 #select train segments
 condition_trains <- 
+  posmo$datetime > as.POSIXct("2023-04-21 06:51:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 06:54:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 07:12:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 07:31:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 12:48:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 13:13:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 18:24:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 19:52:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 14:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 14:58:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-26 18:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-26 19:15:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-05-09 8:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-09 10:55:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-28 12:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-28 12:50:00", tz = "Europe/Zurich") | 
@@ -297,6 +314,10 @@ condition_trains <-
 
 #select trams segments
 condition_trams <- 
+  posmo$datetime > as.POSIXct("2023-04-18 08:39:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 08:47:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 08:41:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 08:46:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 15:21:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 15:40:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-16 20:01:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-16 20:06:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-09 17:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:22:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-09 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 13:54:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-06 11:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-06 11:23:00", tz = "Europe/Zurich") |
@@ -313,6 +334,25 @@ condition_trams <-
 
 #select bus segments
 condition_bus <- 
+  posmo$datetime > as.POSIXct("2023-04-17 10:03:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-17 10:07:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-17 16:04:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-17 16:21:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-17 18:26:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-17 18:44:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 08:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 08:37:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 17:17:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 17:40:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 19:35:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 19:51:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 08:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 08:39:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 18:34:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 18:43:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 19:34:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 19:49:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 22:01:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 22:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 06:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 06:48:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 07:35:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 07:40:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 15:19:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 15:36:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 16:51:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 16:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 19:53:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 19:59:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 14:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 14:25:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 18:16:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 18:45:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-16 20:09:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-16 20:14:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-16 11:20:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-16 11:31:40", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-09 17:25:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-09 17:31:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-24 19:32:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 19:49:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-24 22:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-24 22:22:00", tz = "Europe/Zurich") |
@@ -338,6 +378,23 @@ condition_bus <-
 
 #select walking segments
 condition_walks <- 
+  posmo$datetime > as.POSIXct("2023-04-18 08:47:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 08:55:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 17:10:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 17:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 17:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 17:48:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-18 17:55:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-18 18:05:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 08:47:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 08:55:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 18:27:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 18:33:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 19:49:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 19:55:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-19 21:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-19 21:59:30", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 07:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 07:48:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 12:02:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 12:47:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 13:13:30", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 13:30:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 13:50:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 14:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 19:59:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 20:15:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-21 22:48:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-21 22:58:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 18:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 18:16:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 18:46:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 19:00:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-05-16 11:31:40", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-16 11:40:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-04-16 15:30:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:37:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-16 15:44:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-16 15:56:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-05-13 13:29:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-05-13 15:01:00", tz = "Europe/Zurich") |
@@ -381,6 +438,8 @@ condition_walks <-
 
 #select car segments
 condition_cars <- 
+  posmo$datetime > as.POSIXct("2023-04-17 07:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-17 07:57:00", tz = "Europe/Zurich") |
+  posmo$datetime > as.POSIXct("2023-04-22 03:45:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-22 04:05:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-11 15:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-11 17:00:00", tz = "Europe/Zurich") | 
   posmo$datetime > as.POSIXct("2023-04-24 14:00:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-04-24 17:30:00", tz = "Europe/Zurich") |
   posmo$datetime > as.POSIXct("2023-06-10 13:40:00", tz = "Europe/Zurich") & posmo$datetime < as.POSIXct("2023-06-10 17:33:00", tz = "Europe/Zurich") |
@@ -426,6 +485,8 @@ posmo$H[posmo$tmode_manual == "plane"] <- 0.0
 posmo <- dplyr::select(posmo, c("source", "datetime", "tmode_manual", "E", "N", "H", "geometry"))
 ```
 
+In the posmo dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
+
 ```{r summary_posmo, echo = TRUE, warning = FALSE, message = FALSE}
 #count of of points per means of transports:
 posmo_tmode_count <- posmo %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
@@ -439,7 +500,7 @@ caption = "Number of points labelized per mode of transport - posmo")
 **Data cleaning and basic processing**  
 The trajectory points recorded on posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. No further preparation were required. 
 
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
+```{r gpd_data, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
 gps_data_raw <- read_delim(here(data_folder, "yelu_dataset_all.csv"), ";")
 
@@ -472,10 +533,9 @@ gps_data <- dplyr::select(gps_data, c("source", "datetime", "N", "E", "H", "geom
 ```
 
 
-**Labelizing data**
-In the GPS tracker dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
+**Labelizing data** 
 
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
+```{r label_gps, echo = TRUE, warning = FALSE, message = FALSE}
 # Conditions for different travel modes
 
 
@@ -690,7 +750,9 @@ gps_data <- gps_data %>%
                                  ))
 ```
 
-```{r summary_posmo, echo = TRUE, warning = FALSE, message = FALSE}
+In the GPS tracker dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
+
+```{r summary_gps, echo = TRUE, warning = FALSE, message = FALSE}
 #count of of points per means of transports:
 gps_tmode_count <- gps_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
 
@@ -705,13 +767,10 @@ caption = "Number of points labelized per mode of transport - GPS tracker")
 ```{r merge_posmo_gps, echo = TRUE, warning = FALSE, message = FALSE}
 #here merge with gps tracker
 mvmt_data <- rbind(posmo, gps_data)
-unique(mvmt_data$tmode_manual)
 col_order <- c("source", "datetime", "tmode_manual" ,"E", "N", "H", "geometry")
 mvmt_data <- mvmt_data[, col_order]
-mvmt_data
-```
 
-```{r add_region, echo = TRUE, warning = FALSE, message = FALSE}
+
 # add regions (for visualisation)
 #Zurich
 zh_ll <- c(2674900, 1244000)
@@ -736,8 +795,7 @@ mvmt_data <- mvmt_data |>
     )
 ```
 
-Here is the final total of recorded points and the distribution within the mean of transport: 
-
+Here is the final total of recorded points and the distribution within the means of transport: 
 
 ```{r count_points_tot, echo = TRUE, warning = FALSE, message = FALSE}
 #count of points:
@@ -747,106 +805,50 @@ knitr::kable(tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport")
 ```
 
-**Map general overview - two users:**  
-
-```{r count_points_tot, echo = TRUE, warning = FALSE, message = FALSE}
-# Add CH and Kanton borders to understand the map.
-ggplot(mvmt_data, aes(E, N, color = source)) +
-  geom_point() +
-  #geom_path() +
-  coord_equal() +
-  theme(legend.position = "none") +
-  labs(subtitle = "All points")
+**Map general overview - transport modes:**  
+```{r plot_tot, echo = TRUE, warning = FALSE, message = FALSE}
+mvmt_data_classified <-  mvmt_data %>% filter(tmode_manual != "unclassified")
+ggplot() +
+  geom_sf(data = ch_boundaries) +
+  labs(title = "All recorded trajectory points") +
+  geom_point(data = mvmt_data_classified, aes(E, N, color = tmode_manual)) +
+  theme_bw()
 ```
 
-```{r}
-#map overview -> too much points = too slow, to remove.
-mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = mvmt_data_wgs,
-                   #opacity = 0.3, 
-                   radius = 0.2,
-                   popup = mvmt_data_wgs$datetime,
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue'), 
-            labels = c('points'),
-            title = 'All points from GPS tracker and posmo')
-
-# Plot the leaflet object m
-m
-
-
+**Map local overview - Zurich:**  
+```{r plot_zh, echo = TRUE, warning = FALSE, message = FALSE}
+mvmt_data_zh <- mvmt_data_classified %>% filter(region == "Zurich")
+ggplot() +
+  geom_sf(data = zh_commune) +
+  labs(title = "Recorded trajectory points - Zurich city") +
+  geom_point(data = mvmt_data_zh, aes(E, N, color = tmode_manual)) +
+  theme_bw()
 ```
 
-Map general overview - labelized segments:  
-```{r}
-#map overview
-mvmt_data_wgs <- mvmt_data %>% st_transform(crs = 4326) %>% filter(tmode_manual != "classified")
-
-
-
-# check overlapping days of labelized data
-# mvmt_data_wgs %>% 
-#   mutate(
-#     day = format(as.POSIXct(datetime), format = "%Y-%m-%d")) %>%
-#   group_by(day, source) %>% 
-#   summarize(n()) %>% View()
-
-
-#Palette
-factpal <- colorFactor(topo.colors(2), domain =mvmt_data_wgs$source)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = mvmt_data_wgs,
-                   #opacity = 0.3, 
-                   radius = 0.2,
-                   popup = mvmt_data_wgs$datetime,
-                   color = ~factpal(source)) %>%
-                   #color = 'blue') %>%
-  addLegend(position = 'topright', 
-            #colors = c('blue'), 
-            #labels = c('points'),
-            pal = factpal,
-            values = mvmt_data_wgs$source,
-            title = 'Labelized points from GPS tracker and posmo')
-
-# Plot the leaflet object m
-m
-
-
+**Map local overview - Waadt:**  
+```{r plot_waadt, echo = TRUE, warning = FALSE, message = FALSE}
+mvmt_data_waadt <- mvmt_data_classified %>% filter(region == "Waadt")
+ggplot() +
+  geom_sf(data = waadt) +
+  labs(title = "Recorded trajectory points - Waadt kanton") +
+  geom_point(data = mvmt_data_waadt, aes(E, N, color = tmode_manual)) +
+  theme_bw()
 ```
-
-
-Map general overview - posmo user:  
-...
-
-Map general overview - GPS tracker user:  
-...
-
-Map general overview - per region (?):  
-...
-
 
 
 ### 2.1.2 Segmentation
-- remove statics (ex.3)
-- Add segment IDs (ex.3 - task 4)
-/!\ we could use the static points for means of transport.
-...
+The points will be segmentized based on the user, gaps in recording and the labelized transport mode. The static points will be detected and removed from the dataset. Finally, to have multiple segments for machine learning, the segments will again be segmentized per duration with a defined threshold.  
 
-posmo sampling rate: 10 sec
-GPS sampling rate: 5 sec
+**Compute raw trajectory derivatives**  
+We will need the timelag and steplength between each points. 
+The timelag will be used for detecting the gaps, and the steplength to find the static points.  
+The points with a timelag of 0 have been removed after this step. After inspection, it seems these are points created by posmo processing of the data: At each change of transport mode, the point is duplicate with different coordinates.
 
-#### Raw trajectory derivatives
-Here we will compute all necessary values to determine mean of transport: 
+**Detect gaps in recording**  
+Posmo recording timerate is of 10 seconds, and the gps tracker of 5 sec. We will use a threshold value above these numbers which has been decided for 30 seconds. We estimated under 30 seconds, the gaps are not too important to define the derivative (max 3 missing points in posmo and max. 6 in GPS tracker).  
 
-```{r}
-#compute trajectory derivatives
-
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# 1) Compute raw trajectory derivatives
 mvmt_data <- 
   mvmt_data %>%
   group_by(source) %>%
@@ -859,70 +861,24 @@ mvmt_data <-
     slope = (lead(H) - H)/steplength_m * 100
     )
 
-#remove timelag 0 -> recording errors
+# Remove timelag 0 -> recording errors
 mvmt_data <- mvmt_data %>% filter(timelag != 0)
-```
 
-
-
-0) SAMPLE DATA FOR TRYING IT OUT  
-Point to drop when we are done with the tests.  
-```{r}
-#try on a sampled data
-mvmt_data2 <- mvmt_data #|> filter(as.Date(datetime) == "2023-04-12")
-  #filter(as.Date(datetime) == "2023-05-04")
-  #filter(tmode_manual == "train")
-mvmt_data2
-```
-
-#### Pre-segmentation: gap, user and labelized transport mode
-1) Detect gaps in recording
-
-```{r}
-#determine static points: choose an average distance to use as the threshold
-mvmt_data_gap <- mvmt_data2 |>
+# 2) Find gaps in the data
+mvmt_data_gap <- mvmt_data |>
   ungroup() |>
   mutate(gap = timelag > 30)
 
-
-#Visualisation of gap / no gap
-visu_gap_wgs <- mvmt_data_gap |> filter(gap) %>% st_transform(crs = 4326)
-visu_no_gap_wgs <- mvmt_data_gap |> filter(!gap) %>% st_transform(crs = 4326)
-
-m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(data = visu_no_gap_wgs,
-                   radius = 0.2,
-                   popup = paste(
-                     " steplength: ", round(visu_no_gap_wgs$steplength_m,2),
-                     " timelag: ", visu_no_gap_wgs$timelag,
-                     " speed_ms: ", round(visu_no_gap_wgs$speed_ms,2),
-                     " source: ", visu_no_gap_wgs$source
-                     ),
-                   color = 'blue') %>%
-  addCircleMarkers(data = visu_gap_wgs,
-                   radius = 0.2,
-                   popup = paste(
-                     " steplength: ", round(visu_gap_wgs$steplength_m,2),
-                     " timelag: ", visu_gap_wgs$timelag,
-                     " speed_ms: ", round(visu_gap_wgs$speed_ms,2),
-                     " source: ", visu_gap_wgs$source
-                     ),
-                   color = 'red') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('no gap', 'gap'),
-            title = 'Gap in the data')
-
-# Plot the leaflet object m
-m
 ```
 
+**Segmentation per gap, user and transport mode**  
+A unique segment ID is attributed at each point based on the user, transport mode, and gaps. Three individual indexes for those are created. The points are traversed in user and datetime order, and at each change of user or transport mode, the indexes are increased. For the gap, the last point before the gap closes the current segment index. Finally, the three indexes are combined to form unique segments.  
 
-2) Segmentation per gap, user and transport mode  
+Once the segments are created, the total duration could be calculated as well as meansteps at different window sizes. We looked at 5 points before and after the considered points, so we could calculate three mean values of the steplength: one small window (only 1 value before/after), one medium window (3 before/after), and one big window (5 before/after). These different steplength means will be used for the static calculation and to define the characteristics of transport modes.  
 
-```{r}
-#function source: Exercice3
+```{r gap_segmentation, echo = TRUE, warning = FALSE, message = FALSE}
+# Increment an index at each change of value in the vec column.
+# function source: GEO880 - Exercise3
 rle_id <- function(vec) {
     x <- rle(vec)$lengths
     as.factor(rep(seq_along(x), times = x))
@@ -931,11 +887,12 @@ rle_id <- function(vec) {
 mvmt_data_segmentized <- mvmt_data_gap %>%
   mutate(
     segment_ID_user = rle_id(source),
-    segment_ID_gap = 1, #to split segments when recording gap in it
+    segment_ID_gap = 1,
     segment_ID_tmode = rle_id(tmode_manual)
   )
 
-#increment segment_ID_gap for each TRUE
+# Gap: Increment segment_ID_gap for each TRUE
+# Takes some time: to optimize
 for (i in 2:nrow(mvmt_data_segmentized)) {
   if (mvmt_data_segmentized$gap[i-1] == TRUE) {
     mvmt_data_segmentized$segment_ID_gap[i] <- mvmt_data_segmentized$segment_ID_gap[i-1] + 1
@@ -950,43 +907,28 @@ mvmt_data_segmentized <- mvmt_data_segmentized %>%
     segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
   )
 
-
-# mvmt_data_segmentized <- mvmt_data_gap %>%
-#   mutate(
-#     segment_ID_user = rle_id(source),
-#     segment_ID_gap = rle_id(gap), #to split segments when recording gap in it
-#     segment_ID_tmode = rle_id(tmode_manual),
-#     segment_ID_both = paste(segment_ID_user, segment_ID_gap, segment_ID_tmode, sep = "-")
-#     #segment_ID_both = as.numeric(segment_ID_user) * as.numeric(segment_ID_gap) * as.numeric(segment_ID_tmode)
-#   )
-
 # Add duration per segment 
-# change the unit from mins to secs
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
   mutate(duration_secs = as.integer(difftime(max(datetime), min(datetime), units = "secs")))
 
-#specify temporal window
-#60 seconds ?
-#/!\ ordered and by user
-#mvmt_data <- mvmt_data %>% arrange(desc(datetime))
-
-
-#meanstep
+# Calculate distances to previous/next points
 mvmt_data_segmentized <- mvmt_data_segmentized |>
   group_by(segment_ID_both) %>%
     mutate(
       nMinus5 = sqrt((lag(E, 5) - E)^2 + (lag(N, 5) - N)^2),
-      nMinus4 = sqrt((lag(E, 4) - E)^2 + (lag(N, 4) - N)^2), 
-      nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30s
-      nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20s
-      nMinus1 = sqrt((lag(E, 1) - E)^2 + (lag(N, 1) - N)^2), #dist to pos -10 sec
-      nPlus1  = sqrt((E - lead(E, 1))^2 + (N - lead(N, 1))^2), #dist to pos +10 sec
-      nPlus2  = sqrt((E - lead(E, 2))^2 + (N - lead(N, 2))^2), #dist to pos +20 sec
-      nPlus3  = sqrt((E - lead(E, 3))^2 + (N - lead(N, 3))^2), #dist to pos +30 sec
-      nPlus4  = sqrt((E - lead(E, 4))^2 + (N - lead(N, 4))^2), #dist to pos +30 sec
-      nPlus5  = sqrt((E - lead(E, 5))^2 + (N - lead(N, 5))^2), #dist to pos +30 sec
+      nMinus4 = sqrt((lag(E, 4) - E)^2 + (lag(N, 4) - N)^2), #...
+      nMinus3 = sqrt((lag(E, 3) - E)^2 + (lag(N, 3) - N)^2), #dist to pos -30/20s
+      nMinus2 = sqrt((lag(E, 2) - E)^2 + (lag(N, 2) - N)^2), #dist to pos -20/10s
+      nMinus1 = sqrt((lag(E, 1) - E)^2 + (lag(N, 1) - N)^2), #dist to pos -10/5s
+      nPlus1  = sqrt((E - lead(E, 1))^2 + (N - lead(N, 1))^2), #dist to pos +10/5s
+      nPlus2  = sqrt((E - lead(E, 2))^2 + (N - lead(N, 2))^2), #dist to pos +20/10s
+      nPlus3  = sqrt((E - lead(E, 3))^2 + (N - lead(N, 3))^2), #dist to pos +30/20s
+      nPlus4  = sqrt((E - lead(E, 4))^2 + (N - lead(N, 4))^2), #...
+      nPlus5  = sqrt((E - lead(E, 5))^2 + (N - lead(N, 5))^2),
     )
+
+# Calculate meanstep at three different windows: small, middle and big
 mvmt_data_segmentized <- mvmt_data_segmentized |>
     rowwise() |>
     mutate(
@@ -995,57 +937,22 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
         stepMean_bigw = round(mean(c(nMinus5, nMinus4, nMinus3, nMinus2, nMinus1, nPlus1, nPlus2, nPlus3, nPlus4, nPlus5)),2)
     ) |>
     ungroup()
-
-
-# # MAP VISUALISATION
-# n_segs <- mvmt_data_segmentized$segment_ID_both %>% unique() %>% length()
-# mvmt_data_wgs <- mvmt_data_segmentized %>% st_transform(crs = 4326)
-# 
-# set.seed(2)
-# factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
-# 
-# m <- leaflet() %>%
-#   #addTiles() %>%  # Add default OpenStreetMap map tiles
-#   addProviderTiles("Esri.WorldGrayCanvas") %>%
-#   addCircleMarkers(data = mvmt_data_wgs,
-#                    #opacity = 0.3,
-#                    radius = 0.2,
-#                    popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
-#                    color = ~factpal(segment_ID_both)) %>%
-#   addLegend(position = 'topright',
-#             #colors = c('red'),
-#             #labels = c('static'),
-#             pal = factpal,
-#             values = mvmt_data_wgs$segment_ID_both,
-#             title = 'Segments')
-# 
-# # Plot the leaflet object m
-# m
 ```
 
-#### Remove static points
-3) Add statics info
+**Determine static points, and remove static and small segments**  
+The static is calculated per segment, by comparing the mean steplength of the big window to the one from the small window. This method was chosen because some transport modes have variances in speed (stops in public transport, or traffic jams, light stops, ...). Therefore, a comparison with the overall segment was not ideal.  
+Static points with a steplength of less than 5m were also considered as statics.  
+Finally, segments with a duration of less than 30 seconds were removed.  
+The information about static was still kept in the segments by calculating a percentage of static, as this could be useful to determine the mean of transport.  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 #determine static points: choose an average distance to use as the threshold
-
 mvmt_data_add_static <- mvmt_data_segmentized |>
   group_by(segment_ID_both) %>%
-  #ungroup() |>
   mutate(
-    #stepMean = ifelse(is.na(stepMean), 500, stepMean), # first and last points of window
     static = 
-           #timelag < 5.0
-           #(timelag_mean > 1.0 | timelag_mean < -1.0) 
-           #timelag_mean != 0.0 | 
-           #is.na(timelag_mean)
-           #speed_ms_mean < 0.02 & speed_ms_mean > -0.02
-           #stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE),
-           # Optimize by adding 'or' conditions
            stepMean_bigw < mean(stepMean_smallw, na.rm=TRUE) | 
            steplength_m < 0.5,
-           #stepMean < mean(steplength_m, na.rm=TRUE),
-           #mean(steplength_m, na.rm = TRUE)
     static =  ifelse(is.na(static), FALSE, static)
            )
 
@@ -1057,105 +964,20 @@ mvmt_data_add_static <- mvmt_data_add_static |>
     # Optimize by only considering continuous static points
     )
 
-
-#mvmt_data %>% group_by(source) %>% summarize(mean = mean(stepMean)) %>% View()
-
-
-# #Visualisation of static / non static:
-# visu_static_wgs <- mvmt_data_add_static |> filter(static) %>% st_transform(crs = 4326)
-# 
-# visu_no_static_wgs <- mvmt_data_add_static |> filter(!static) %>% st_transform(crs = 4326)
-# 
-# m <- leaflet() %>%
-#   addTiles() %>%  # Add default OpenStreetMap map tiles
-#   addCircleMarkers(data = visu_no_static_wgs,
-#                    #opacity = 0.3,
-#                    radius = 0.2,
-#                    popup = paste(
-#                      "step_mean: ", visu_no_static_wgs$stepMean_midw,
-#                      " steplength: ", round(visu_no_static_wgs$steplength_m,2),
-#                      " timelag: ", visu_no_static_wgs$timelag,
-#                      " speed_ms: ", round(visu_no_static_wgs$speed_ms,2),
-#                      " source: ", visu_no_static_wgs$source
-#                      ),
-#                    color = 'blue') %>%
-#   addCircleMarkers(data = visu_static_wgs,
-#                    #opacity = 0.3,
-#                    radius = 0.2,
-#                    popup = paste(
-#                      "step_mean: ", visu_static_wgs$stepMean_midw,
-#                      " steplength: ", round(visu_static_wgs$steplength_m,2),
-#                      " timelag: ", visu_static_wgs$timelag,
-#                      " speed_ms: ", round(visu_static_wgs$speed_ms,2),
-#                      " source: ", visu_static_wgs$source
-#                      ),
-#                    color = 'red') %>%
-#   addLegend(position = 'topright', 
-#             colors = c('blue', 'red'), 
-#             labels = c('non static', 'static'),
-#             title = 'static vs non static')
-# 
-# # Plot the leaflet object m
-# m
-
-# visu_no_static |>
-#     ggplot(aes(E, N)) +
-#     geom_path() +
-#     geom_point() +
-#     coord_fixed() +
-#     theme(legend.position = "bottom")
-
-```
-
-4) Remove statics and too small segments
-
-```{r}
-
-#mvmt_data_add_static %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode", "segment_ID_user", "source", "segment_ID_gap", "segment_ID_both")) %>% st_drop_geometry() %>% unique() %>% View()
-
-#mvmt_data %>% dplyr::select(c("segment_ID_static", "segment_ID_tmode")) %>% st_drop_geometry() %>% unique() %>% View()
-
-
-# filter static and small segments
+# Filter static and small segments
 mvmt_data_filtered <- mvmt_data_add_static %>%
   group_by(segment_ID_both, source, tmode_manual, duration_secs, static, static_percent) %>%
   # remove static segments
   filter(static == FALSE) %>%
   #remove the too small segments (duration < 30 s)
   filter(duration_secs > 30)
-# we should also filter segments with less than ~5 points (?)
-
-
-# MAP VISUALISATION
-# n_segs <- mvmt_data_filtered$segment_ID_both %>% unique() %>% length()
-# mvmt_data_wgs <- mvmt_data_filtered %>% st_transform(crs = 4326)
-# 
-# set.seed(2)
-# factpal <- colorFactor(sample(rainbow(n_segs)), domain =mvmt_data_wgs$segment_ID_both)
-# 
-# m <- leaflet() %>%
-#   #addTiles() %>%  # Add default OpenStreetMap map tiles
-#   addProviderTiles("Esri.WorldGrayCanvas") %>%
-#   addCircleMarkers(data = mvmt_data_wgs,
-#                    #opacity = 0.3,
-#                    radius = 0.2,
-#                    popup = paste("seg_ID: ", mvmt_data_wgs$segment_ID_both),
-#                    color = ~factpal(segment_ID_both)) %>%
-#   addLegend(position = 'topright', 
-#             #colors = c('red'), 
-#             #labels = c('static'),
-#             pal = factpal,
-#             values = mvmt_data_wgs$segment_ID_both,
-#             title = 'Segments - filtered statics and small')
-# 
-# # Plot the leaflet object m
-# m
 ```
 
-#### Final segmentation: duration
-5) Resegmentize per duration  
-(For Machine Learning)
-```{r}
+**Final segmentation per duration**  
+In order to have more segments of each transport modes for the machine learning, the long segments were segmentized based on the duration. The maximum duration considered was 100 seconds. However, to not create very small parts, when the last resegmentized part was smaller than 50 seconds, this was added to the penultimate part.  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Segmentize per duration
 mvmt_data_split <- mvmt_data_filtered %>% 
   group_by(segment_ID_both) %>%
   mutate(
@@ -1171,23 +993,93 @@ mvmt_data_split <- mvmt_data_filtered %>%
     segment_ID_final = paste(segment_ID_both, duration_index, sep = "-")
   )
 
-mvmt_data_split %>% View()
-
-```
-
-
-6) final segmentization
-Note: static to improve.  
-```{r}
+# Remove unwanted columns
 mvmt_seg_final <- mvmt_data_split %>% 
   dplyr::select(-c("segment_ID_user", "segment_ID_both", "segment_ID_gap", "duration_index", "segment_ID_tmode", "nMinus5", "nMinus4", "nMinus3", "nMinus2", "nMinus1", "nPlus1", "nPlus2", "nPlus3", "nPlus4", "nPlus5"
 ))
 ```
 
+
+Here is the summary of the resulting number of segments, ordered from the most to last:  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Count no of segs per means of transports:
+mvmt_seg_count <- mvmt_seg_final  %>% st_drop_geometry() %>% group_by(segment_ID_final, tmode_manual) %>% summarize() %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
+
+knitr::kable(mvmt_seg_count,
+caption = "Number of segments per mode of transport")
+```
+
+
+**Segments visualisation - example**
+
+Here we take an example with both posmo and gps data, at different steps of the analysis.
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# MAP VISUALISATIONS
+
+# Final segments per transport modes
+visu_data <- mvmt_seg_final %>% filter(as.Date(datetime) == "2023-05-16")
+
+n_tmode <- visu_data$tmode_manual %>% unique() %>% length()
+visu_data_wgs <- visu_data %>% st_transform(crs = 4326)
+
+set.seed(2)
+factpal <- colorFactor(topo.colors(n_tmode), domain =visu_data_wgs$tmode_manual)
+
+m <- leaflet() %>%
+  #addTiles() %>%  # Add default OpenStreetMap map tiles
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data_wgs,
+                   #opacity = 0.3,
+                   radius = 0.2,
+                   popup = paste("seg_ID: ", visu_data_wgs$segment_ID_final),
+                   color = ~factpal(tmode_manual)) %>%
+  addLegend(position = 'topright',
+            #colors = c('red'),
+            #labels = c('static'),
+            pal = factpal,
+            values = visu_data_wgs$tmode_manual,
+            title = '2023-05-16: Final segments per transport mode')
+
+## Plot the leaflet object m
+m
+
+
+# Gaps
+visu_gaps_static <- mvmt_data_add_static %>% filter(as.Date(datetime) == "2023-05-16")
+
+visu_gaps_static |>
+    ggplot(aes(E, N, color = gap)) +
+    #geom_path() +
+    geom_point() +
+    coord_fixed() +
+  labs(title = "2023-05-16: Identified gaps") +
+    theme(legend.position = "right")
+
+# Static
+visu_gaps_static |>
+    ggplot(aes(E, N, color = static)) +
+    #geom_path() +
+    geom_point() +
+    coord_fixed() +
+  labs(title = "2023-05-16: Identified static points") +
+    theme(legend.position = "right")
+
+# Final segments
+visu_data |>
+    ggplot(aes(E, N, color = segment_ID_final)) +
+    #geom_path() +
+    geom_point() +
+    coord_fixed() +
+  labs(title = "2023-05-16: Final segments") +
+    theme(legend.position = "right")
+```
+
 ### 2.1.3 Trajectories derivatives
 Compute trajectories derivatives for each segment
---> to do after annotation.  
-```{r}
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # SUMMARIZE
 mvmt_seg_summary <- mvmt_seg_final %>%
   group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
@@ -1212,7 +1104,6 @@ mvmt_seg_summary <- mvmt_seg_final %>%
     # Geometry
     lst_geometry = list(geometry))
 
-mvmt_seg_summary %>% View()
 ```
 
 
@@ -1683,6 +1574,9 @@ ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
 
 # 6. References
 
-- DHM25 Swisstopo: https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html
+- DHM25 Swisstopo:  https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html 
+
+- Swissboundaries: 
+https://www.swisstopo.admin.ch/en/geodata/landscape/boundaries3d.html 
 
 
