@@ -45,6 +45,7 @@ check_pkg("dplyr")
 check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
+check_pkg("maptools")
 # Machine learning
 check_pkg("caTools")
 check_pkg("class")
@@ -58,9 +59,9 @@ check_pkg("rmdwc")
 
 #DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-# data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # (Criteria):
@@ -847,6 +848,7 @@ Here we will compute all necessary values to determine mean of transport:
 ```{r}
 #compute trajectory derivatives
 
+# Speed and steplength
 mvmt_data <- 
   mvmt_data %>%
   group_by(source) %>%
@@ -854,10 +856,26 @@ mvmt_data <-
     timelag = as.numeric(difftime(lead(datetime), datetime)),
     steplength_m = sqrt((E-lead(E))^2 + (N-lead(N))^2), # Horizontal steplength 
     steplength_h = H-lead(H), # Add vertical steplength
-    speed_ms = abs(steplength_m)/timelag,
-    speed_v = abs(steplength_h)/timelag,
+    speed_ms = abs(steplength_m)/timelag, # Horizontal speed
+    speed_v = abs(steplength_h)/timelag, # Vertical speed
     slope = (lead(H) - H)/steplength_m * 100
     )
+
+# Turning angle
+trackAngle <- function(Ecol, Ncol){
+    coords <- data.matrix(cbind(Ecol, Ncol))
+    n <- length(Ecol)
+    if(n > 2){ 
+      angles <- abs(c(trackAzimuth(coords), 0) -
+                    c(0, rev(trackAzimuth(coords[nrow(coords):1, ]))))
+      angles <- ifelse(angles > 180, 360 - angles, angles)
+      angles[is.na(angles)] <- 180
+      return(c(0, angles[-c(1, length(angles))], 0))
+      }
+    else{
+      return(numeric(n))
+    }
+}
 
 #remove timelag 0 -> recording errors
 mvmt_data <- mvmt_data %>% filter(timelag != 0)
@@ -996,6 +1014,23 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
     ) |>
     ungroup()
 
+# Turning angle of each point in each segment
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
+  group_by(segment_ID_both) %>%
+    mutate(turning_angle = trackAngle(E, N))
+
+# Acceleration for each point in each segment
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
+  group_by(segment_ID_both) %>%
+    mutate(acceleration_h = (speed_ms - lead(speed_ms))/timelag,
+           acceleration_v = (speed_v - lead(speed_v)/timelag))
+
+# Remove na with 0 in acceleration columns
+mvmt_data_segmentized <- mvmt_data_segmentized %>%
+  mutate(
+    acceleration_h = replace(acceleration_h, is.na(acceleration_h), 0),
+    acceleration_v = replace(acceleration_v, is.na(acceleration_v), 0),
+  )
 
 # # MAP VISUALISATION
 # n_segs <- mvmt_data_segmentized$segment_ID_both %>% unique() %>% length()
@@ -1207,12 +1242,21 @@ mvmt_seg_summary <- mvmt_seg_final %>%
     speed_v_mean = mean(speed_v),
     speed_v_sd = sd(speed_v),
     speed_v_range = max(speed_v) - min(speed_v),
+    # Horizontal Acceleration
+    a_h_mean = mean(acceleration_h),
+    a_h_sd = sd(acceleration_h),
+    a_h_range = max(acceleration_h) - min(acceleration_h),
+    # Vertical Acceleration
+    a_v_mean = mean(acceleration_v),
+    a_v_sd = sd(acceleration_v),
+    a_v_range = max(acceleration_v) - min(acceleration_v),    
     # Sinuosity
-    # Acceleration
+    ta_mean = mean(turning_angle),
+    ta_sd = sd(turning_angle),
+    ta_range = max(turning_angle) - min(turning_angle),
     # Geometry
     lst_geometry = list(geometry))
-
-mvmt_seg_summary %>% View()
+# mvmt_seg_summary %>% View()
 ```
 
 
@@ -1520,12 +1564,19 @@ mvmt_all$isClosetoCables <- as.integer(as.logical(mvmt_all$isClosetoCables))
 mvmt_all$isHighAltitude <- as.integer(as.logical(mvmt_all$isHighAltitude))
 
 # For machine learning, select factor columns only
-mvmt_all <- mvmt_all %>% dplyr::select(c("duration_secs", "static_percent", "space_duration",
-                                 "stepMean_midw_mean", "steplength_mean","steplength_sd", 
-                                 "speed_h_mean", "speed_h_sd", "speed_h_range", "speed_v_mean",
-                                 "speed_v_sd", "speed_v_range", "isClosetoLakes",
-                                 "isClosetoRails", "isClosetoBus", "isClosetoTrams",     
-                                 "isClosetoHighways", "isClosetoCables", "isHighAltitude","label"))
+mvmt_all <- mvmt_all %>% dplyr::select(c("static_percent", "space_duration",
+                                         "stepMean_midw_mean", "steplength_mean",
+                                         "steplength_sd", 
+                                         "speed_h_mean", "speed_h_sd",
+                                         "speed_h_range", "speed_v_mean",
+                                         "speed_v_sd", "speed_v_range",
+                                         "a_h_mean", "a_h_sd", "a_h_range",
+                                         "a_v_mean", "a_v_sd", "a_v_range",
+                                         "ta_mean","ta_sd", "ta_range",  
+                                         "isClosetoLakes","isClosetoRails",
+                                         "isClosetoBus", "isClosetoTrams",
+                                         "isClosetoHighways", "isClosetoCables",
+                                         "isHighAltitude", "label"))
 # unique(mvmt_all$label)
 
 # Split into training and testing dataset
@@ -1631,6 +1682,8 @@ for(m in 1:3){ # Loop through the different models
     rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
     rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
     rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
+    importance(rf)
+    varImpPlot(rf)
   }
   print(rf_train_cva)
   print(rf_test_cva)
