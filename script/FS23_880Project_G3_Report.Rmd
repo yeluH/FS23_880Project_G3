@@ -46,22 +46,24 @@ check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
 check_pkg("maptools")
+
 # Machine learning
 check_pkg("caTools")
 check_pkg("class")
 check_pkg("forecast")
 check_pkg("MLmetrics")
 check_pkg("randomForest")
+check_pkg("concaveman") # for concave hulls
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
 #rmdcountAddin()
 
-#DATA FOLDER
+# DATA FOLDER
 #On Martine laptop:
-#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # (Criteria):
@@ -813,6 +815,7 @@ ggplot() +
   geom_sf(data = ch_boundaries) +
   labs(title = "All recorded trajectory points") +
   geom_point(data = mvmt_data_classified, aes(E, N, color = tmode_manual)) +
+  coord_sf(datum=2056) +
   theme_bw()
 ```
 
@@ -823,6 +826,7 @@ ggplot() +
   geom_sf(data = zh_commune) +
   labs(title = "Recorded trajectory points - Zurich city") +
   geom_point(data = mvmt_data_zh, aes(E, N, color = tmode_manual)) +
+  coord_sf(datum=2056) +
   theme_bw()
 ```
 
@@ -833,6 +837,7 @@ ggplot() +
   geom_sf(data = waadt) +
   labs(title = "Recorded trajectory points - Waadt kanton") +
   geom_point(data = mvmt_data_waadt, aes(E, N, color = tmode_manual)) +
+  coord_sf(datum=2056) +
   theme_bw()
 ```
 
@@ -1091,6 +1096,7 @@ visu_gaps_static |>
     #geom_path() +
     geom_point() +
     coord_fixed() +
+  coord_equal() +
   labs(title = "2023-05-16: Identified gaps") +
     theme(legend.position = "right")
 
@@ -1100,6 +1106,7 @@ visu_gaps_static |>
     #geom_path() +
     geom_point() +
     coord_fixed() +
+  coord_equal() +
   labs(title = "2023-05-16: Identified static points") +
     theme(legend.position = "right")
 
@@ -1109,6 +1116,7 @@ visu_data |>
     #geom_path() +
     geom_point() +
     coord_fixed() +
+    coord_equal() +
   labs(title = "2023-05-16: Final segments") +
     theme(legend.position = "right")
 ```
@@ -1154,73 +1162,94 @@ mvmt_seg_summary <- mvmt_seg_final %>%
 
 
 
-### 2.1.4 Trajectories annotation
-- datasets descriptions
-- annotate trajectories
+### 2.1.4 Trajectories annotation  
 
-/!\ dissolve the shapefiles first makes the calculation quickest.
+Each point will be annotated with the information TRUE/FALSE of its proximity to the following environment elements:  
+- Railways (train)  
+- Trams (rails)  
+- Bus stops  
+- Highways ("Autobahn" and "Autostrasse")  
+- Cable-cars, ski-lifts and t-bars  
+- Lakes  
+- Mountainous area (altitude)  
 
-done: 
-- check buffer distance with other examples
-- calculate % per segment to attributes FALSE/TRUE to the segment
--> add it in mvmt_data_summarized
+The railways for the trains and trams come from map.geoadmin.ch.
+The lakes, bus stops, highways and cable-cars & co comes from SwissTLM3D (swisstopo). Due to the number of water elements, only the biggest lakes have been considered. For the highways, it was decided to only take this category of road because this was the most helpful to separate with the other transport modes. Classical roads, in addition of being all other the territory, allow other transport modes such as bikes or walking. Bus networks lines were not available from swisstopo for downloading for whole Switzerland coverage, therefore the stops points were used.  
+The distance considered for proximity has been chosen individually for each transport mode, based on inspection of all the points labelized in the transport mode.
+Finally, the altitude simply used the heights of the points and applies a threshold. The limit of 1200m has been chosen, as it has been observed that most ski stations in the country are above this limit.  
 
-Q: -> faire convex-hull autour des points pour couper les datasets et limiter le tps de calcul? (sur R)
+```{r st_join_annotation, echo = TRUE, warning = FALSE, message = FALSE}
+# Calculate concave hull based on the trajectory points 
+concave_hull <- concaveman(mvmt_seg_final, concavity = 2, length_threshold=50) %>% st_buffer(500)
 
-```{r}
-#ALL
+# Join the trajectory points with the environment datasets, by using the concave hull on the shp and to limit calculation time. Dissolve and simplification also reduce the calculation time.
 
 # 1) RAILS
-rails_shp <- read_sf(here(data_folder, "railways", "rails_train_dissolved.shp")) %>% st_zm() 
+
+rails_shp <- read_sf(here(data_folder, "railways", "rails.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_intersection(concave_hull) %>% mutate(environment = "rails") %>% st_simplify(dTolerance = 1)
+
 joined_data <- mvmt_seg_final %>% 
   st_join(rails_shp, join = st_is_within_distance, 30)
 
-mvmt_seg_final$isClosetoRails <- !is.na(joined_data$xtf_id)
+mvmt_seg_final$isClosetoRails <- !is.na(joined_data$environment)
 
 # 2) TRAMS
-trams_shp <- read_sf(here(data_folder, "railways", "trams_dissolved.shp")) %>% st_zm() 
+
+trams_shp <- read_sf(here(data_folder, "railways", "trams.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_intersection(concave_hull) %>% mutate(environment = "trams") %>% st_simplify(dTolerance = 1)
+
 joined_data <- mvmt_seg_final %>% 
   st_join(trams_shp, join = st_is_within_distance, 20)
 
-mvmt_seg_final$isClosetoTrams <- !is.na(joined_data$xtf_id)
+mvmt_seg_final$isClosetoTrams <- !is.na(joined_data$environment)
 
 # 3) BUS STOPS
-bus_shp <- read_sf(here(data_folder, "stops", "bus_stops_dissolved.shp")) %>% st_zm() 
+
+bus_shp <- read_sf(here(data_folder, "stops", "bus_stops.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_intersection(concave_hull) %>% mutate(environment = "bus")
+
 joined_data <- mvmt_seg_final %>%
   st_join(bus_shp, join = st_is_within_distance, 50)
 
-mvmt_seg_final$isClosetoBus <- !is.na(joined_data$fid)
+mvmt_seg_final$isClosetoBus <- !is.na(joined_data$environment)
 
 # 4) HIGHWAYS
-roads_shp <- read_sf(here(data_folder, "roads", "roads_dissolved.shp")) %>% st_zm()
+
+# Highways have first been extracted from the whole swissTLM3D roads datasets by selecting "Autobahn" and "Autostrasse". This is not in the script, due to the huges amount of segments.
+roads_shp <- read_sf(here(data_folder, "roads", "roads_dissolved.shp")) %>% st_zm() %>% st_intersection(concave_hull) %>% mutate(environment = "cars") %>% st_simplify(dTolerance = 1)
+
 joined_data <- mvmt_seg_final %>%
   st_join(roads_shp, join = st_is_within_distance, 20)
 
-mvmt_seg_final$isClosetoHighways <- !is.na(joined_data$UUID)
+mvmt_seg_final$isClosetoHighways <- !is.na(joined_data$environment)
 
 # 5) LAKES
-lakes_shp <- read_sf(here(data_folder, "lakes", "large_lakes_dissolved.shp")) %>% st_zm() 
-joined_data <- mvmt_seg_final %>%
-  st_join(lakes_shp, join = st_is_within_distance, 1)
 
-mvmt_seg_final$isClosetoLakes <- !is.na(joined_data$UUID)
+# Larges lakes have been preselected by defining a threshold of surface ("surface">=10000000)
+lakes_shp <- read_sf(here(data_folder, "lakes", "large_lakes.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_intersection(concave_hull) %>% mutate(environment = "lakes") %>% st_simplify(dTolerance = 5)
+
+joined_data <- mvmt_seg_final %>% st_join(lakes_shp, join = st_is_within_distance, 1)
+
+mvmt_seg_final$isClosetoLakes <- !is.na(joined_data$environment)
 
 # 6) SKI LIFTS AND CABLE CARS
-cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar.shp")) %>% st_zm()
+
+cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar_raw.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_transform(crs=2056) %>% st_intersection(concave_hull) %>% mutate(environment = "cable_cars") %>% st_simplify(dTolerance = 1) 
+
 joined_data <- mvmt_seg_final %>%
   st_join(cables_shp, join = st_is_within_distance, 10)
 
-mvmt_seg_final$isClosetoCables <- !is.na(joined_data$UUID)
+mvmt_seg_final$isClosetoCables <- !is.na(joined_data$environment)
 
 # 7) HIGH ALTITUDES
+
 mvmt_seg_final <- mvmt_seg_final %>% mutate(
   isHighAltitude = case_when(H >= 1200.0 ~ TRUE,
                              .default = FALSE)
 )
 ```
 
+Once the points have been annotated, a proximity for the whole segments was defined. A threshold based on percentage of proximity was defined, again individually for each mode to optimize the correct classification.  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # SUMMARIZE ANNOTATIONS
 mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
   group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
@@ -1233,137 +1262,160 @@ mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
     isClosetoCables =  (sum(isClosetoCables) / n() * 100 ) > 80.0,
     isHighAltitude = (sum(isHighAltitude) / n() * 100 ) > 80.0
     )
-mvmt_seg_annotations_summarized %>% View()
+
 ```
 
-```{r}
-#VISUALISATION
 
-#Visualisation of proximity for rails:
+**Visualisation of the environment datasets:**  
 
-# isClosetoRails
-# isClosetoTrams
-# isClosetoLakes
-# isClosetoHighways
-# isClosetoCables
-# isHighAltitude
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Rails
+ggplot() +
+  geom_sf(data = rails_shp) +
+  labs(title = "Railways - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoRails), size=0.5, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
 
-visu_true <- mvmt_seg_final |> filter(isClosetoRails) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoRails) %>% st_transform(crs = 4326)
+# Trams
+ggplot() +
+  geom_sf(data = trams_shp) +
+  labs(title = "Trams - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoTrams), size=0.5, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
 
-wgs <- rails_shp %>% st_transform(crs = 4326)
-#wgs <- trams_shp %>% st_transform(crs = 4326)
-#wgs <- lakes_shp %>% st_transform(crs = 4326)
-#wgs <- roads_shp %>% st_transform(crs = 4326)
-#wgs <- cables_shp %>% st_transform(crs = 4326)
-# ALTITUDE = NO WGS
+# Bus stops
+ggplot() +
+  geom_sf(data = bus_shp, size=0.5) +
+  labs(title = "Bus stops - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoBus), size=1, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
+
+# Highways
+ggplot() +
+  geom_sf(data = roads_shp) +
+  labs(title = "Highways - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoHighways), size=0.5, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
+
+# Lakes
+ggplot() +
+  geom_sf(data = lakes_shp) +
+  labs(title = "Lakes - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoLakes), size=0.5, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
+
+# Ski lifts and cable cars
+ggplot() +
+  geom_sf(data = cables_shp) +
+  labs(title = "Cable car and ski lifts - Proximity of the recorded trajectory points") +
+  geom_point(data = mvmt_seg_final, aes(E, N, color = isClosetoCables), size=0.5, alpha=0.5) +
+  coord_sf(datum=2056) +
+  theme_bw()
+```
+
+**Visualisation - university day**  
+On the map below in Zurich, can be observed trams, bus and walk travel modes.   
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Visu proximity to environment for specific days
+# Zurich - trams, bus and walk
+
+visu_data <- mvmt_seg_final %>% filter(as.Date(datetime) == "2023-05-16") %>% st_transform(crs=4326)
+
+# Cut environment data for vizualisation
+c_hull <- concaveman(visu_data, concavity = 2) %>% st_buffer(500)
+trams_c <- trams_shp %>% st_transform(crs = 4326) %>% st_intersection(c_hull)
+
+bus_c <- bus_shp %>% st_transform(crs = 4326) %>% st_intersection(c_hull) %>% st_cast("POINT")
+
+visu_bus <- visu_data %>% filter(isClosetoBus)
+visu_tram <- visu_data  %>% filter(isClosetoTrams)
 
 m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addPolylines(
-    data = wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+    addPolylines(data = trams_c,
+                 color = "black",
+                 opacity = 0.5) %>%
+    addCircleMarkers(data = bus_c,
+               color = "#696969",
+               radius = 10,
+               fillOpacity = 0.0) %>%
+    addCircleMarkers(data = visu_data,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_final
+                     " tmode: ", visu_data$tmode_manual
                      ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
+                   color = "#DAA520") %>%
+  addCircleMarkers(data = visu_bus,
+                   opacity = 0.8,
+                   radius = 5,
                    popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_final
+                     " tmode: ", visu_bus$tmode_manual
                      ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
+                   color = "#0000FF") %>%
+  addCircleMarkers(data = visu_tram,
+                 opacity = 0.8,
+                 radius = 1,
+                 popup = paste(
+                   " tmode: ", visu_tram$tmode_manual
+                   ),
+                 color = "#FF0000") %>%
+  addLegend(position = 'topright',
+            colors = c("#DAA520", "#0000FF", "#FF0000", "#696969", "black"),
+            labels = c('All points', "isCloseToBus", "isCloseToTrams", "Circle: bus stops", "Lines: trams"),
+            title = '2023-05-16: Proximity - Lecture day')
 
-# Plot the leaflet object m
+## Plot the leaflet object m
 m
 ```
 
-```{r}
-#VISUALISATION FOR BUS
 
-#VISU
-bus_wgs <- read_sf(here(data_folder, "stops", "bus_stops.shp")) %>% st_zm() %>% st_transform(crs = 4326)
+**Visualisation - ski day**  
+On this map below in Grimentz, Wallis, can be seen the travel modes ski, cable-car, ski-lift and t-bar.  
 
-#Visualisation of proximity:
-visu_true <- mvmt_seg_final |> filter(isClosetoBus) %>% st_transform(crs = 4326)
-visu_false <- mvmt_seg_final |> filter(!isClosetoBus) %>% st_transform(crs = 4326)
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Visu proximity to environment for specific days
+# Grimentz - ski, ski-lift, cable-car, t-bar
 
+visu_data <- mvmt_seg_final %>% filter(as.Date(datetime) == "2023-04-13") %>% st_transform(crs=4326)
+
+# Cut environment data for vizualisation
+c_hull <- concaveman(visu_data, concavity = 2) %>% st_buffer(1000)
+cables_c <- cables_shp %>% st_transform(crs = 4326) %>% st_intersection(c_hull)
+
+visu_cables <- visu_data %>% filter(isClosetoCables)
 
 m <- leaflet() %>%
-  addTiles() %>%  # Add default OpenStreetMap map tiles
-  addCircleMarkers(
-    data = bus_wgs,
-    color = 'green'
-  ) %>%
-  addCircleMarkers(data = visu_false,
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+    addPolylines(data = cables_c,
+                 color = "black",
+                 opacity = 0.5) %>%
+    addCircleMarkers(data = visu_data,
                    radius = 0.2,
                    popup = paste(
-                     "tmode: ", visu_false$tmode_manual, ". ID: ", visu_false$segment_ID_final
+                     " tmode: ", visu_data$tmode_manual
                      ),
-                   color = 'red') %>%
-  addCircleMarkers(data = visu_true,
-                   radius = 0.2,
+                   color = "#DAA520") %>%
+  addCircleMarkers(data = visu_cables,
+                   opacity = 0.8,
+                   radius = 1,
                    popup = paste(
-                     "tmode: ",  visu_true$tmode_manual, ". ID: ", visu_false$segment_ID_final
+                     " tmode: ", visu_cables$tmode_manual
                      ),
-                   color = 'blue') %>%
-  addLegend(position = 'topright', 
-            colors = c('blue', 'red'), 
-            labels = c('close', 'not close'),
-            title = 'Proximity to environment')
+                   color = "#0000FF") %>%
+  addLegend(position = 'topright',
+            colors = c("#DAA520", "#0000FF", "black"),
+            labels = c('All points', "isClosetoCables", "Lines: cable car, ski-lifts, t-bars"),
+            title = '2023-04-13: Proximity - ski day')
 
-# Plot the leaflet object m
+## Plot the leaflet object m
 m
 ```
-
-
-
-Blabla to sort:  
-
-
-
-IMPORT highways:
-From swissTLM3D.
-We selected only highways and autostrasse, because on this road, only cars are allowed, which would be helpful to determine cars segments.
-
-IMPORT LAKES:
-
-Lakes have first been selected ("surface">=10000000) for the ones that could have boats.Smaller likes could also have boats, but for calcualtion performances we only took the biggest lakes in our calculations. Then dissolved.
-
-
-Ski lifts and cable cars:
-
-
-BUS STOPS
-source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
-sort all the stops which contains "bus" as Type of transport.
-
-386 TRUE / 1374 total
-
-alternative: get lines from OSM.  
-
-
-
-MOUNTAIN AREAS:  
-stations de basses altitude (Jura, ...)
-Abbaye: 1000m
-Les Rasses: 1100m
-Tuffes: 1200m
-
-Les pléaides: 1200m
-Villars-sur-Ollon: 1200m (?)
-
--> lets take 1200m
-
-
-
 
 
 ## 2.2 Summarized characteristics of transport modes
@@ -1421,6 +1473,7 @@ mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
                   by = c('segment_ID_final', 'tmode_manual',
                          'duration_secs', 'static_percent'))
 
+#mvmt_all %>% group_by(isClosetoLakes) %>% count() %>% View()
 # ## 1459 RECORDS
 # 
 # 
@@ -1634,4 +1687,6 @@ ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
 - Swissboundaries: 
 https://www.swisstopo.admin.ch/en/geodata/landscape/boundaries3d.html 
 
-
+- SwissTLM3D:
+...
+source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
