@@ -1,3 +1,17 @@
+TODO 3
+-------
+0) Labelize data (Martine)
+1) Summarize characteristics per mean of transport (Yelu)
+   Use value instead of boolean for annotation result
+   - Statistics for methodology part
+   - Boxplot for result part
+   Optimize the boxplot
+2) Machine Learning
+   Change parameter sets (Yelu)
+   Visualization
+3) Paperwork (Martine & Yelu)
+
+
 TODO 2
 -------
 0) Labelize data (Martine)
