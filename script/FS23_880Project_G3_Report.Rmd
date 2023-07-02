@@ -65,6 +65,8 @@ check_pkg("MLmetrics")
 check_pkg("randomForest")
 check_pkg("caret") #for statistics
 
+check_pkg("ggcorrplot") #for correlation matrix
+
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
 #rmdcountAddin()
@@ -1592,8 +1594,8 @@ mvmt_sta <- merge(st_drop_geometry(mvmt_seg_summary),
                   st_drop_geometry(mvmt_seg_annotations_summarized),
                   by = c('segment_ID_final', 'tmode_manual',
                          'duration_secs', 'static_percent'))
-mvmt_sta <- mvmt_sta %>% 
-  dplyr::select(-c("lst_geometry")) %>% 
+mvmt_sta <- mvmt_sta %>%
+  dplyr::select(-c("lst_geometry")) %>%
   filter(tmode_manual != "unclassified")
 
 
@@ -1626,7 +1628,7 @@ mvmt_sta$isHighAltitude <- as.integer(as.logical(mvmt_sta$isHighAltitude))
 # length(mvmt_sta)
 mvmt_sta %>%
   # mutate(text = fct_reorder(text, value)) %>% # Reorder data
-  ggplot(aes(x = tmode_manual, y = duration_secs, 
+  ggplot(aes(x = tmode_manual, y = duration_secs,
              fill = tmode_manual, color = tmode_manual)) +
     geom_violin(width=2.1, size=0.2) +
     scale_fill_viridis(discrete=TRUE) +
@@ -1641,7 +1643,7 @@ mvmt_sta %>%
 
 colourCount = length(unique(mvmt_sta$tmode_manual))
 getPalette = colorRampPalette(brewer.pal(9, "Set3"))
-# ggplot(mvmt_sta, aes(x=tmode_manual, y=duration_secs, fill=tmode_manual)) + 
+# ggplot(mvmt_sta, aes(x=tmode_manual, y=duration_secs, fill=tmode_manual)) +
 #   geom_boxplot(alpha=0.7) +
 #   theme(legend.position="none") +
 #   scale_fill_manual(values = getPalette(colourCount))
@@ -1649,7 +1651,7 @@ getPalette = colorRampPalette(brewer.pal(9, "Set3"))
 
 q <- length(mvmt_sta)
 for(i in 3:q){
-  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
+  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i],
                                fill=tmode_manual)) + geom_boxplot(alpha=0.7) +
     theme(legend.position="none") +
     scale_fill_manual(values = getPalette(colourCount))+
@@ -1678,17 +1680,17 @@ highlim = quantile(mvmt_walk$duration_secs, 0.9)[[1]]
 
 q <- length(mvmt_sta)
 for(i in 3:q){
-  
+
   limtable <- mvmt_walk %>% filter(tmode_manual == "walk") %>%
   summarize(
   lowlim = quantile(mvmt_walk[,i], 0.1)[[1]],
   highlim = quantile(mvmt_walk[,i], 0.9)[[1]])
-  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
-                               fill=tmode_manual)) + 
+  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i],
+                               fill=tmode_manual)) +
     geom_boxplot(alpha=0.7, outlier.shape = NA) +
     # coord_cartesian(ylim = c(min(limtable$lowlim),
     #                          max(limtable$highlim))) +
-    # coord_cartesian(ylim = c(lowlim, highlim)) + 
+    # coord_cartesian(ylim = c(lowlim, highlim)) +
     # coord_cartesian(ylim = (boxplot.stats(mvmt_sta[,i])$stats[c(1, 5)])*1.05) +
     theme(legend.position="none") +
     scale_fill_manual(values = getPalette(colourCount)) +
@@ -1728,7 +1730,9 @@ m
 
 ```
 
-## 2.3 Machine Learning  
+
+
+## 2.3 Machine Learning algorithms
 
 Two different supervised algorithms will be tested:  
 - K-Nearest Neighbors  
@@ -1823,8 +1827,29 @@ chunk <- (rank_n - 1)%/%n_tail + 1
 chunk <- as.factor(chunk)
 mvmt_all_train_chunk <- mvmt_all_train
 mvmt_all_train_chunk$chunk <- chunk
-
 ```
+
+
+The classification will also be tried without the proximity attributes to see if how good the classification could still be or not be, with only trajectory derivative.  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Create test/train sets without environment annotation
+mvmt_all_test_nprox <- mvmt_all_test %>% dplyr::select(-c("isClosetoLakes", "isClosetoRails", "isClosetoBus","isClosetoTrams", "isClosetoHighways", "isClosetoCables", "isHighAltitude"))
+mvmt_all_train_nprox <- mvmt_all_train %>% dplyr::select(-c("isClosetoLakes", "isClosetoRails", "isClosetoBus","isClosetoTrams", "isClosetoHighways", "isClosetoCables", "isHighAltitude"))
+
+# For validation
+# for 10-fold cross validation 
+k_fold <- 10
+n3 <- nrow(mvmt_all_train_nprox)
+n_tail <- n3%/%k_fold
+rnd_n <- runif(n3)
+rank_n <- rank(rnd_n)
+chunk <- (rank_n - 1)%/%n_tail + 1
+chunk <- as.factor(chunk)
+mvmt_all_train_nprox_chunk <- mvmt_all_train_nprox
+mvmt_all_train_nprox_chunk$chunk <- chunk
+```
+
 
 Below, is the distribution of the segments within the train and validation sets. Some transport modes do not have a lot of segments (kick-scooter, run, t_bar). The algorithms might have some difficulties with it (imbalance training sets).  
 
@@ -1840,14 +1865,18 @@ n_seg_train_test_set <- data.frame(
   train_set = train_set_count$n,
   test_set = test_set_count$n
 )
+
+knitr::kable(n_seg_train_test_set, caption = "Segments in test and training sets")
 ```
 
 
-### 2.3.2 KNN algorithms  
+### 2.3.2 K-Nearest Neighbours
 
 Knn is non linear supervised classifier.  
 from cheng course:  
 Algorithm: Given an unlabeled data record, find the K nearest neighbors in the training data, and assign the major class label (majority voting) as the label of the unlabeled data record.
+
+#### Knn with all feature attributes
 
 The main parameter to set for Knn is "k" the number of neighbours considered. Three numbers will be tested: 5, 11, 50.
 
@@ -1914,6 +1943,7 @@ knn_tests <- c(1, 2, 3)
 knn_train_cva_mean <- c(round(knn_train_cva_mean1, 2), round(knn_train_cva_mean2,2), round(knn_train_cva_mean3,2))
 knn_test_cva_mean <- c(round(knn_test_cva_mean1,2), round(knn_test_cva_mean2,2), round(knn_test_cva_mean3,2))
 res_model_knn <- data.frame(model_no = knn_tests, mean_train = knn_train_cva_mean, mean_test = knn_test_cva_mean)
+
 knitr::kable(res_model_knn, caption = "Knn - models Accuracy on train and test data")
 ```
 
@@ -1934,28 +1964,119 @@ The classes which were the best predicted correctly (sensivity):
 - <0.3: bike, ski: a bit better  
 - kick-scooter, cable_car, boat  
 
-The least performant tmode (kick-scooter, cable_car, boat, t_bar) are the one with the least representation in the test  set (prevalence), and the best have the most (train, tram, walk, car).
+The least performent tmode (kick-scooter, cable_car, boat, t_bar) are the one with the least representation in the test  set (prevalence), and the best have the most (train, tram, walk, car).
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Confusion matrix
-caret::confusionMatrix(knn_test_pred1, mvmt_all_test$label)
+print("Confusion matrix - KNN")
+cm_knn <- caret::confusionMatrix(knn_test_pred1, mvmt_all_test$label)
+print(cm_knn)
 ```
 
+#### Knn without proximity attributes
 
-### 2.3.3 Random Forest algorithm
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Models without proximities
+
+# Build models with 3 parameter sets
+for(m in 1:3){
+  knn_train_cva <- numeric(0)
+  knn_test_cva <- numeric(0)
+  
+  if (m == 1){
+      kv= 5
+    }
+    if (m == 2){
+      kv= 11
+    }
+    if (m == 3){
+      kv= 50
+    }
+  
+  for(i in 1:k_fold){
+    set.seed(21)
+    knn_train_pred <- knn(train = dplyr::select(mvmt_all_train_nprox_chunk[chunk != i, ], -label, -chunk),
+                          test = dplyr::select(mvmt_all_train_nprox, -label),
+                       cl = mvmt_all_train_nprox_chunk[chunk != i, ]$label, k=kv)
+    knn_test_pred <- knn(train = dplyr::select(mvmt_all_train_nprox_chunk[chunk != i, ], -label, -chunk),
+                       test = dplyr::select(mvmt_all_test_nprox, -label),
+                       cl = mvmt_all_train_nprox_chunk[chunk != i, ]$label, k=kv)
+    
+    knn_train_cva <- rbind(knn_train_cva, Accuracy(knn_train_pred, mvmt_all_train_nprox_chunk$label))
+    knn_test_cva <- rbind(knn_test_cva, Accuracy(knn_test_pred, mvmt_all_test_nprox$label))
+  }
+  #print(knn_train_cva)
+  #print(knn_test_cva)
+
+  if (m == 1){
+    knn_train_nprox_pred1 <- knn_train_pred
+    knn_test_nprox_pred1 <-  knn_test_pred
+    knn_train_nprox_cva1 <- knn_train_cva
+    knn_test_nprox_cva1 <- knn_test_cva 
+    knn_train_nprox_cva_mean1<-mean(knn_train_cva)
+    knn_test_nprox_cva_mean1<-mean(knn_test_cva)
+    }
+  if (m == 2){
+    knn_train_nprox_pred2 <- knn_train_pred
+    knn_test_nprox_pred2 <-  knn_test_pred
+    knn_train_nprox_cva2 <- knn_train_cva
+    knn_test_nprox_cva2 <- knn_test_cva 
+    knn_train_nprox_cva_mean2<-mean(knn_train_cva)
+    knn_test_nprox_cva_mean2<-mean(knn_test_cva)
+    }
+  if (m == 3){
+    knn_train_nprox_pred3 <- knn_train_pred
+    knn_test_nprox_pred3 <-  knn_test_pred
+    knn_train_nprox_cva3 <- knn_train_cva
+    knn_test_nprox_cva3 <- knn_test_cva 
+    knn_train_nprox_cva_mean3<-mean(knn_train_cva)
+    knn_test_nprox_cva_mean3<-mean(knn_test_cva)
+    }
+}
+#plot(mvmt_all$label)
+
+# Create dataframe comparison of the tested models
+knn_tests <- c(1, 2, 3)
+knn_train_nprox_cva_mean <- c(round(knn_train_nprox_cva_mean1, 2), round(knn_train_nprox_cva_mean2,2), round(knn_train_nprox_cva_mean3,2))
+knn_test_nprox_cva_mean <- c(round(knn_test_nprox_cva_mean1,2), round(knn_test_nprox_cva_mean2,2), round(knn_test_nprox_cva_mean3,2))
+res_model_nprox_knn <- data.frame(model_no = knn_tests, mean_train = knn_train_nprox_cva_mean, mean_test = knn_test_nprox_cva_mean)
+
+knitr::kable(res_model_nprox_knn, caption = "Knn - no proximity attributes - models Accuracy on train and test data")
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Confusion matrix
+print("Confusion matrix - KNN, no proximity attributes")
+cm_knn_nprox <- caret::confusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label)
+print(cm_knn_nprox)
+```
+
+-> 0.7, kappa = 0.64
+
+### 2.3.3 Random Forest
 Random Forest is a multiple decision tree algorithm.  
+
+
+#### RF with all features attribute
 
 The main parameters is the number of trees. Three different values will be tested: 20, 40 and 80.  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build 3 models with different parameter sets
+
+#20, 40, 80
+#40, 60, 80
+#80, 100, 120
+#80, 90, 100
+#75, 80, 85
+
 for(m in 1:3){ # Loop through the different models
   if (m == 1){
-      ntree_value= 20}
+      ntree_value= 75}
   if (m == 2){
-      ntree_value= 40}
-  if (m == 3){
       ntree_value= 80}
+  if (m == 3){
+      ntree_value= 85}
   rf_train_cva <- numeric(0)
   rf_test_cva <- numeric(0)
   for(i in 1:k_fold){
@@ -1973,6 +2094,26 @@ for(m in 1:3){ # Loop through the different models
   #print(rf_train_cva)
   #print(rf_test_cva)
   
+  # Summary recall, precision, F1
+  #https://blog.revolutionanalytics.com/2016/03/com_class_eval_metrics_r.html#perclass
+  cm_rf_simple <- ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
+  
+  n = sum(cm_rf_simple) # n. instances
+  nc = nrow(cm_rf_simple) # n. classes
+  diag = diag(cm_rf_simple) # n. correctly classified instances per class 
+  rowsums = apply(cm_rf_simple, 1, sum) # n. instances per class
+  colsums = apply(cm_rf_simple, 2, sum) # n. predictions per class
+  p = rowsums / n # distribution of instances over the actual classes
+  q = colsums / n # distribution of instances over the predicted classes
+  precision = diag / colsums 
+  recall = diag / rowsums 
+  f1 = 2 * precision * recall / (precision + recall) 
+  
+  print(paste("n_trees: ", ntree_value))
+  df <- data.frame(precision, recall, f1) %>% as.data.frame() 
+  df %>% replace(is.na(df), 0) %>% summary() %>% print()
+  
+  # Save prediction and trains
   if (m == 1){
     rf1 <- rf
     rf_train_pred1 <- rf_train_pred
@@ -2002,11 +2143,20 @@ for(m in 1:3){ # Loop through the different models
   }}
 
 # Create dataframe comparison of the tested models
+# rf_tests <- c(1, 2, 3)
+# rf_train_cva_mean <- c(round(rf_train_cva_mean1, 3), round(rf_train_cva_mean2,3), round(rf_train_cva_mean3,3))
+# rf_test_cva_mean <- c(round(rf_test_cva_mean1,3), round(rf_test_cva_mean2,3), round(rf_test_cva_mean3,3))
+# res_model_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_cva_mean, mean_test = rf_test_cva_mean)
+# knitr::kable(res_model_rf, caption = "RF - models Accuracy on train and test data")
+
+# Summary accuracy on test and train sets
 rf_tests <- c(1, 2, 3)
-rf_train_cva_mean <- c(round(rf_train_cva_mean1, 3), round(rf_train_cva_mean2,3), round(rf_train_cva_mean3,3))
-rf_test_cva_mean <- c(round(rf_test_cva_mean1,3), round(rf_test_cva_mean2,3), round(rf_test_cva_mean3,3))
+rf_train_cva_mean <- c(round(rf_train_cva_mean1, 6), round(rf_train_cva_mean2,6), round(rf_train_cva_mean3,6))
+rf_test_cva_mean <- c(round(rf_test_cva_mean1,6), round(rf_test_cva_mean2,6), round(rf_test_cva_mean3,6))
 res_model_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_cva_mean, mean_test = rf_test_cva_mean)
 knitr::kable(res_model_rf, caption = "RF - models Accuracy on train and test data")
+
+
 ```
 
 The accuracy of each model for train/test sets tells us that the performances are very similar for the 3 different number of trees. Because the first one has less tree (less overfitting), this model will then be kept for further analysis.
@@ -2019,19 +2169,203 @@ kappa: 0.9 with high significant (p_value < 0.05)
 Accuracy: 0.91  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
-caret::confusionMatrix(rf_test_pred1, mvmt_all_test$label)
+print("Confusion matrix - RF")
+cm_rf <- caret::confusionMatrix(rf_test_pred1, mvmt_all_test$label)
+print(cm_rf)
 ```
 
 **Importances of features - RF**  
 (comment importances of features)  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
+print("Importance of features:")
 importance(rf1)
 varImpPlot(rf1)
 ```
 
+#### RF without proximity attributes
 
-**Visualisation - map** (<- should do it in the knn and rf sections)
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Models without proximities
+
+# Build 3 models with different parameter sets
+for(m in 1:3){ # Loop through the different models
+  if (m == 1){
+      ntree_value= 20}
+  if (m == 2){
+      ntree_value= 40}
+  if (m == 3){
+      ntree_value= 80}
+  rf_train_cva <- numeric(0)
+  rf_test_cva <- numeric(0)
+  for(i in 1:k_fold){
+    set.seed(21)
+    rf <- randomForest(x = dplyr::select(mvmt_all_train_nprox_chunk[chunk != i, ], -label, -chunk), 
+                     y = mvmt_all_train_nprox_chunk[chunk != i, ]$label, 
+                     importance=TRUE, proximity=TRUE, ntree = ntree_value) 
+    rf_train_pred <- predict(rf, dplyr::select(mvmt_all_train, -label), type="class")
+    rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
+    rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
+    rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
+    #importance(rf)
+    #varImpPlot(rf)
+  }
+  #print(rf_train_cva)
+  #print(rf_test_cva)
+  
+  if (m == 1){
+    rf_nprox1 <- rf
+    rf_train_nprox_pred1 <- rf_train_pred
+    rf_test_nprox_pred1 <-  rf_test_pred
+    rf_train_nprox_cva1 <- rf_train_cva
+    rf_test_nprox_cva1 <- rf_test_cva 
+    rf_train_nprox_cva_mean1<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean1<-mean(rf_test_cva)
+    }
+  if (m == 2){
+    rf_nprox2 <- rf
+    rf_train_nprox_pred2 <- rf_train_pred
+    rf_test_nprox_pred2 <-  rf_test_pred
+    rf_train_nprox_cva2 <- rf_train_cva
+    rf_test_nprox_cva2 <- rf_test_cva 
+    rf_train_nprox_cva_mean2<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean2<-mean(rf_test_cva)
+    }
+  if (m == 3){
+    rf_nprox3 <- rf
+    rf_train_nprox_pred3 <- rf_train_pred
+    rf_test_nprox_pred3 <-  rf_test_pred
+    rf_train_nprox_cva3 <- rf_train_cva
+    rf_test_nprox_cva3 <- rf_test_cva 
+    rf_train_nprox_cva_mean3<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean3<-mean(rf_test_cva)
+  }}
+
+# Create dataframe comparison of the tested models
+rf_tests <- c(1, 2, 3)
+rf_train_nprox_cva_mean <- c(round(rf_train_nprox_cva_mean1, 3), round(rf_train_nprox_cva_mean2,3), round(rf_train_nprox_cva_mean3,3))
+rf_test_nprox_cva_mean <- c(round(rf_test_nprox_cva_mean1,3), round(rf_test_nprox_cva_mean2,3), round(rf_test_nprox_cva_mean3,3))
+
+res_model_nprox_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_nprox_cva_mean, mean_test = rf_test_nprox_cva_mean)
+knitr::kable(res_model_nprox_rf, caption = "RF - models Accuracy on train and test data")
+```
+
+**Importances of features - RF no proximities**  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+print("Importance of features:")
+importance(rf_nprox1)
+varImpPlot(rf_nprox1)
+```
+
+**Confusion matrix - RF**  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+print("Confusion matrix - RF, no proximity attributes")
+cm_rf_nprox <- caret::confusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label)
+print(cm_rf_nprox)
+
+```
+
+
+
+# 3. Results
+
+## 3.1 Summarized characteristics of transport modes
+...
+
+## 3.2 Machine learning algorithms
+
+**Correlation matrix**  
+
+It is interesting to analyse the relations between the features. There are some obvious correlations (speed, acceleration, or high altitude correlate with closeness to cables (cable car & ski-lift & t-bar)). What is more interesting to notice is the correlation between the proximity to trams and bus (0.4).
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# correlation matrix
+corr <- mvmt_all %>% dplyr::select(-c("segment_ID_final", "label")) %>% cor(method = "pearson") %>% round(1)
+
+ggcorrplot(corr, hc.order = FALSE, type = "lower",
+   lab = TRUE)
+```
+
+
+**Summary of the accuracy and kappas of the 4 considered models**  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+models <- c("Knn", "Knn no proximity", "RF", "RF no proximity")
+data.frame(models = models, 
+           accuracy = c(round(cm_knn$overall[1],3), round(cm_knn_nprox$overall[1],3), round(cm_rf$overall[1],3), round(cm_rf_nprox$overall[1],3)),
+           kappa = c(round(cm_knn$overall[2],3), round(cm_knn_nprox$overall[2],3), round(cm_rf$overall[2],3), round(cm_rf_nprox$overall[2],3))
+           )
+
+
+```
+
+**Summary for RF features importances**  
+
+```{r}
+importance(rf1)
+
+check_pkg("rfviz")
+check_pkg("randomForestExplainer")
+
+rfviz::rf_viz(rf_nprox1)
+min_depth_frame <- min_depth_distribution(rf1)
+
+plot_min_depth_distribution(min_depth_frame)
+
+```
+
+
+### 3.2.1 Comparison of the confusion matrix**
+
+**Confusion matrix - Knn**  
+
+```{r}
+# Knn
+print(ConfusionMatrix(knn_test_pred1, mvmt_all_test$label))
+```
+
+**Confusion matrix - Knn no proximities**  
+
+```{r}
+# Knn no prox
+print(ConfusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label))
+```
+
+**Confusion matrix - RF**  
+
+```{r}
+# rf
+print(ConfusionMatrix(rf_test_pred1, mvmt_all_test$label))
+
+cm_rf_simple <- ConfusionMatrix(rf_test_pred1, mvmt_all_test$label)
+
+n = sum(cm_rf_simple) # number of instances
+nc = nrow(cm_rf_simple) # number of classes
+diag = diag(cm_rf_simple) # number of correctly classified instances per class 
+rowsums = apply(cm_rf_simple, 1, sum) # number of instances per class
+colsums = apply(cm_rf_simple, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted classes
+precision = diag / colsums 
+recall = diag / rowsums 
+f1 = 2 * precision * recall / (precision + recall) 
+
+data.frame(precision, recall, f1) %>% as.data.frame() %>% replace( is.na(df), 0) %>% summary()
+
+```
+
+**Confusion matrix - RF no proximities**  
+
+```{r}
+# rf no prox
+print(ConfusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label))
+```
+
+### 3.2.2 Map visualisation of the predictions 
+
+**Visualisation - map**
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Add column prediction for knn
@@ -2075,16 +2409,9 @@ ggplot() +
   theme_bw()
 ```
 
-# 3. Results
 
-## 3.1 Summarized characteristics of transport modes
-...
 
-## 3.2 Machine learning: K-Nearest Neighbours
-...
 
-## 3.3 Machine learning: Random forest
-...
 
 # 4. Discussion
 
@@ -2101,7 +2428,18 @@ ggplot() +
 
 ## 4.3 Limitations
 
--   data attributes available ( for ex. no height for planes) ...
+**Data availability**
+-   data attributes availability ( for ex. no height for planes) ...  
+
+**Algorithms tight to the specific area of study**
+DATA LIMITATION
+
+A lot of our trajectories are the same and redundant. We mainly took the same tram or bus lines (home to university, home to sport, ...).  
+This means our algorithms have been trained on a specific region or network, which means the algorithm might not work efficiently in other area. However, this is probably only an issue for public transports modes such as bus, trams, boat, ski-lift & t-bar & cable-car and train. Other means such as walk, are not tied to a specific network and differences between regions are not expected.  
+
+Typically countryside bus, tram in Lsne (different network), bus in Lsne or Yverdon.
+
+isCloseToBus -> correlated to isCloseToTram
 
 # 5. Conclusion
 
