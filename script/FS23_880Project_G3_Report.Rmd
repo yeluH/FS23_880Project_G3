@@ -113,7 +113,7 @@ Firstly, the points with be manually labelized with the correct transport modes.
 ## 2.1 Trajectories datasets
 
 - Posmo: from 30 March to 18 June  
-- GPS: from 21 April to 16 June 
+- GPS: from 21 April to 16 June  
 
 ### 2.1.1 Data preparation
 
@@ -987,7 +987,7 @@ ggplot() +
   theme_bw()
 ```
 
-### 2.1.2 Segmentation
+### 2.1.3 Segmentation
 
 The points will be segmentized based on the user, gaps in recording and the labelized transport mode. The static points will be detected and removed from the dataset. Finally, to have multiple segments for machine learning, the segments will again be segmentized per duration with a defined threshold.
 
@@ -1264,7 +1264,7 @@ visu_data |>
     theme(legend.position = "right")
 ```
 
-### 2.1.3 Trajectories derivatives
+### 2.1.4 Trajectories derivatives
 
 After assigning unique ID for every segments, we then calculated the following characteristics of points in each trajectory:
 
@@ -1312,7 +1312,7 @@ mvmt_seg_summary <- mvmt_seg_final %>%
 
 ```
 
-### 2.1.4 Trajectories annotation
+### 2.1.5 Trajectories annotation
 
 Each point will be annotated with the information TRUE/FALSE of its proximity to the following environment elements:\
 - Railways (train)\
