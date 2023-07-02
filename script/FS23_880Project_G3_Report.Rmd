@@ -1953,32 +1953,14 @@ mvmt_all <- merge(st_drop_geometry(mvmt_seg_summary),
                   by = c('segment_ID_final', 'tmode_manual',
                          'duration_secs', 'static_percent'))
 
-#mvmt_all %>% group_by(isClosetoLakes) %>% count() %>% View()
-# ## 1459 RECORDS
-# 
-# 
-# # Save the file from steps above
-# write.csv(dplyr::select(mvmt_all, -c("lst_geometry")), 
-#            here::here(data_folder,"mvmt_all.csv"), row.names=FALSE)
-
-
-# read csv
-# mvmt_all <- read_csv(here(data_folder, "intermediate_results/mvmt_all.csv"))%>% as.data.frame()
-
-
 # Filter the 'unclassified' records
 mvmt_all <- mvmt_all %>% filter(tmode_manual != "unclassified")
 
-
-## 583 RECORDS
-# mvmt_all <- mvmt_all %>% filter(tmode_manual != "plane")
-
-
 # Remove
 mvmt_all <- na.omit(mvmt_all)
+
 # Label travel mode
 mvmt_all$label <- as.factor(mvmt_all$tmode_manual)
-## 561 RECORDS
 
 # Convert boolean to 0/1 value
 mvmt_all$isClosetoLakes <- as.integer(as.logical(mvmt_all$isClosetoLakes))
@@ -1990,7 +1972,7 @@ mvmt_all$isClosetoCables <- as.integer(as.logical(mvmt_all$isClosetoCables))
 mvmt_all$isHighAltitude <- as.integer(as.logical(mvmt_all$isHighAltitude))
 
 # For machine learning, select factor columns only
-# Keep segmentID to mfor visualisation later, drop after the split in train/test data
+# Keep segmentID to for visualisation later, drop after the split in train/test data
 mvmt_all <- mvmt_all %>% dplyr::select(c("segment_ID_final", "static_percent", "space_duration",
                                          "stepMean_midw_mean", "steplength_mean",
                                          "steplength_sd", 
@@ -2004,7 +1986,6 @@ mvmt_all <- mvmt_all %>% dplyr::select(c("segment_ID_final", "static_percent", "
                                          "isClosetoBus", "isClosetoTrams",
                                          "isClosetoHighways", "isClosetoCables",
                                          "isHighAltitude", "label"))
-# unique(mvmt_all$label)
 
 # Split into training and testing dataset
 split <- sample.split(mvmt_all, SplitRatio = 0.3)
@@ -2758,7 +2739,7 @@ data.frame(models = models,
 
 **Summary of the Precision, Recall and F1**
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Extract precision, recall and F1 from confusion matrix
 cm2metrics <- function(cm) {
   n = sum(cm) # number of instances
@@ -2805,28 +2786,28 @@ data.frame(models = models,
 
 **Confusion matrix - Knn**  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Knn
 print(ConfusionMatrix(knn_test_pred1, mvmt_all_test$label))
 ```
 
 **Confusion matrix - Knn no proximities**  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Knn no prox
 print(ConfusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label))
 ```
 
 **Confusion matrix - RF**  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # rf
 print(ConfusionMatrix(rf_test_pred1, mvmt_all_test$label))
 ```
 
 **Confusion matrix - RF no proximities**  
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # rf no prox
 print(ConfusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label))
 ```
@@ -2854,17 +2835,21 @@ varImpPlot(rf1)
 
 ### 3.2.2 Map visualisation of the predictions 
 
-**Visualisation - map**
+**General plots**
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
-# Add column prediction for knn
-mvmt_all_test_g$predicted_knn <- knn_test_pred
-mvmt_all_test_g$predicted_rf <- rf_test_pred
+# Add column predictions
+mvmt_all_test_g$predicted_knn <- knn_test_pred1
+mvmt_all_test_g$predicted_knn_np <- knn_test_nprox_pred1
+mvmt_all_test_g$predicted_rf <- rf_test_pred1
+mvmt_all_test_g$predicted_rf_np <- rf_test_nprox_pred1
 
 mvmt_all_test_g <- mvmt_all_test_g %>%
   mutate(
     correct_knn = predicted_knn == label,
-    correct_rf = predicted_rf == label
+    correct_knn_np = predicted_knn_np == label,
+    correct_rf = predicted_rf == label,
+    correct_rf_np = predicted_rf_np == label
   )
 
 # Reput geometry in the test dataset
@@ -2880,6 +2865,7 @@ coords <- mvmt_all_test_g |> st_coordinates()
 mvmt_all_test_g <- mvmt_all_test_g |> 
   mutate(E =  coords[,1], N = coords[,2])
 
+# General Plots
 
 ggplot() +
   geom_sf(data = ch_boundaries) +
@@ -2891,16 +2877,453 @@ ggplot() +
 
 ggplot() +
   geom_sf(data = ch_boundaries) +
+  labs(title = "Knn no annotations - Predicted trajectory points") +
+  geom_path() +
+  geom_point(data = mvmt_all_test_g, aes(E, N, color = correct_knn_np), alpha = 0.1) +
+  coord_sf(datum=2056) +
+  theme_bw()
+
+ggplot() +
+  geom_sf(data = ch_boundaries) +
   labs(title = "RF - Predicted trajectory points") +
   #geom_path() +
   geom_point(data = mvmt_all_test_g, aes(E, N, color = correct_rf)) +
   coord_sf(datum=2056) +
   theme_bw()
+
+ggplot() +
+  geom_sf(data = ch_boundaries) +
+  labs(title = "RF no annotations - Predicted trajectory points") +
+  #geom_path() +
+  geom_point(data = mvmt_all_test_g, aes(E, N, color = correct_rf_np)) +
+  coord_sf(datum=2056) +
+  theme_bw()
 ```
 
 
-## 3.2 Machine learning: K-Nearest Neighbours
-...
+**Comparison on specific regions - Countryside**  
+
+The plots below show the comparison between Knn and RF in a countryside environment. Transport mode present: car, walk , bus and train. Clicking on the points give you information on the ground truth and predicted value.
+
+We can see that both models fail to identify a section on the top half of the map which was travelled in a bus. Only the part in the village in the North was correctly identified as bus.
+
+We can witness differences in performances between Knn and RF in the south section (train and car). Knn has some confusion between train and car, with or without annotations. Where RF did not have any.
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Visu proximity to environment for specific days
+
+visu_data <- mvmt_all_test_g %>% st_transform(crs=4326) %>% 
+  filter(E > 2537700 & E < 2539620 & N > 1155376 & N < 1167736) %>%
+  st_transform(crs=4326)
+
+if (visu_data$correct_knn %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+}
+
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn
+                     ),
+                   color = ~pal(as.numeric(correct_knn))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "False"),
+            title = 'Countryside: prediction Knn')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_knn_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn_np
+                     ),
+                   color = ~pal(as.numeric(correct_knn_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Countryside: prediction Knn no annotations')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+
+if (visu_data$correct_rf %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+}
+
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf
+                     ),
+                   color = ~pal(as.numeric(correct_rf))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Countryside: prediction RF')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_rf_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf_np
+                     ),
+                   color = ~pal(as.numeric(correct_rf_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Countryside: prediction RF no annotations')
+
+## Plot the leaflet object m
+m
+```
+
+
+**Comparison on specific regions - City - Yverdon-les-Bains**  
+
+The plots below show the comparison between Knn and RF in a small city environment. Transport mode present: car, walk, bus and train. Clicking on the points give you information on the ground truth and predicted value.
+
+Knn has again issue with detecting train sections (predict as car) with or without annotations. Also for bus with car, in the area just in front of the station.
+
+For RF, we can see the annotation helped avoiding false prediction of car in bus. With the annotation, the prediction had no error.
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Visu proximity to environment for specific days
+
+visu_data <- mvmt_all_test_g %>% st_transform(crs=4326) %>% 
+  filter(E > 2537773 & E < 2542333 & N > 1180721 & N < 1182101) %>%
+  st_transform(crs=4326)
+
+if (visu_data$correct_knn %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn
+                     ),
+                   color = ~pal(as.numeric(correct_knn))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "False"),
+            title = 'Yverdon-les-Bains: prediction Knn')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_knn_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn_np
+                     ),
+                   color = ~pal(as.numeric(correct_knn_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Yverdon-les-Bains: prediction Knn no annotations')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+
+if (visu_data$correct_rf %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+}
+
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf
+                     ),
+                   color = ~pal(as.numeric(correct_rf))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Yverdon-les-Bains: prediction RF')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_rf_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf_np
+                     ),
+                   color = ~pal(as.numeric(correct_rf_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Yverdon-les-Bains: prediction RF no annotations')
+
+## Plot the leaflet object m
+m
+```
+
+
+**Comparison on specific regions - City - Zurich**  
+
+The plots below show the comparison between Knn and RF in a big city environment. Transport mode present: bike, walk, bus, run and tram Clicking on the points give you information on the ground truth and predicted value.  
+
+Again, Knn had more struggle than RF. It could not correctly identified the run, some bike and walk.  
+
+For RF, there has been some misclassification of run and walk, but less than Knn. Bike was also confused into bus.
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Visu proximity to environment for specific days
+
+visu_data <- mvmt_all_test_g %>% st_transform(crs=4326) %>% 
+  filter(E > 2682935 & E < 2683929 & N > 1249983 & N < 1250708) %>%
+  st_transform(crs=4326)
+
+if (visu_data$correct_knn %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn
+                     ),
+                   color = ~pal(as.numeric(correct_knn))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "False"),
+            title = 'Irchel: prediction Knn')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_knn_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_knn_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_knn_np
+                     ),
+                   color = ~pal(as.numeric(correct_knn_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Irchel: prediction Knn no annotations')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+
+if (visu_data$correct_rf %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf))
+}
+
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf
+                     ),
+                   color = ~pal(as.numeric(correct_rf))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Irchel: prediction RF')
+
+## Plot the leaflet object m
+m
+```
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+if (visu_data$correct_rf_np %>% as.numeric %>%unique() %>% length() ==1) {
+  pal <- colorNumeric(
+    c("#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+} else {
+  pal <- colorNumeric(
+    c("#FF0000", "#87CEFA"),
+    domain = as.numeric(visu_data$correct_rf_np))
+}
+
+m <- leaflet() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addCircleMarkers(data = visu_data,
+                   opacity = 0.8,
+                   radius = 0.2,
+                   fillOpacity = 0.2,
+                   popup = paste(
+                     " Truth: ", visu_data$label,
+                     ". Predicted: ", visu_data$predicted_rf_np
+                     ),
+                   color = ~pal(as.numeric(correct_rf_np))) %>%
+  addLegend(position = 'topright',
+            colors = c("#87CEFA", "#FF0000"),
+            labels = c('Correct', "false"),
+            title = 'Irchel: prediction RF no annotations')
+
+## Plot the leaflet object m
+m
+```
+
 
 # 4. Discussion
 
