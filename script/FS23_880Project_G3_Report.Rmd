@@ -1592,6 +1592,7 @@ According to the following table, the mean percentage of significant groups is 4
 Based on the result, we could say most derivatives we calculated from movement characteristics differ significantly between transport mode. And therefore, we believe using these derivatives to identify travel mode is feasible.
 
 
+
 ```{r}
 #count of segments:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
