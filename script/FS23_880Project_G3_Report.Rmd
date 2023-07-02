@@ -1,7 +1,7 @@
 ---
 title: "GEO880-G3-Report"
 author: "Martine Besse & Yelu He"
-date: "2023-07-01"
+date: "2023-07-02"
 always_allow_html: true
 output:
   html_document:
@@ -82,22 +82,11 @@ data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Anal
 #data_folder <- "D:/GEO880/Project"
 ```
 
-# (Criteria):
-new length:  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
-
-Report your work in a written project report. The report has two functions:\
--- It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.\
--- It will be used to evaluate and mark your project.
-
-Your report shall: -- cover how you went about investigating your research questions. Describe your data science ideas and how you implemented your ideas. -- present the results of your study and discuss them in the light of your research questions. What have you achieved and what would be further steps for future research? -- report problems and limitations you encountered along the way and the solutions you chose to overcome these, be it limitations with respect to the data sources, the tools or any other source of limitation. -- discuss your data science choices in the light of the theory covered in the lectures, group works, and your reading assignments.
-
-Good example: <https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html>
-
 # 1. Introduction
 
 Our project aims at defining, describing and identifying movement patterns for different travel modes. Movement data has been collected over a period of approximately two months and a various range of travel modes have been recorded: train, tram, bus, car, walking, cycling, running, kick-scooter, ski, ski-lift and cable-car, boat and plane. A labeled dataset with travel modes will be extracted from the collected raw data by cleaning, filtering and segmentation.
 
-The movement pattern for each travel mode will first be characterized by the following metrics: speed (acceleration, deceleration), sinuosity (angle, direction), and environmental factors related to the studied travel mode: proximity to railway tracks, tram lines, road network, walking path, slope, etc. **Furthermore, it will be described and summarized with the knowledge of previous studies on travel modes identification from GPS tracks.**
+The movement pattern for each travel mode will first be characterized by the following metrics: speed (acceleration, deceleration), sinuosity (angle, direction), and environmental factors related to the studied travel mode: proximity to railway tracks, tram lines, road network, walking path, slope, etc. 
 
 In a second step, the suitability of these characteristics for identifying travel modes will be studied. Limitation of data and methods will also be discussed. For example are the difference of the aforementioned chracteristics significant between two travel modes, and does our recorded data contain enough information.
 
@@ -112,7 +101,7 @@ Based on the answer, a model will then be attempted to build. We will apply it t
 
 ## 1.2 Background
 
-Literature review - list of travel modes considered in our study. - characteristics specific to the mean of transport
+Subjects and exercices studied in class were used to build our project. Additional paper (See references) were also read.
 
 # 2. Methodology
 
@@ -121,18 +110,10 @@ First the trajectories data will be prepared to be fed for machine learning: dat
 To train a machine learning to classify the segments in the correct categories, we first need to clean and prepare our data.\
 Firstly, the points with be manually labelized with the correct transport modes. Secondly, the points will be segmentized based on time gaps (error in recording or simply break in movement (night)) Then, trajectory derivatives such as speed, sinuosity will be calculated.
 
-Labels list: boat, train, etc.
-
-Trajectories derivatives useful to determine mean of transport: for ex. mean speed, sinuosity (train, cable car, ski lift -\> not much sinuosity). Walk, car, ski -\> more sinuosity.
-
-Here list the derivatives ?
-
-We need Height for:---
-
 ## 2.1 Trajectories datasets
 
--   Posmo dataset starts from 30 March to 18 June (\~169 days). Time rate 10 sec
--   GPS: ...
+- Posmo: from 30 March to 18 June  
+- GPS: from 21 April to 16 June 
 
 ### 2.1.1 Data preparation
 
@@ -1592,7 +1573,7 @@ According to the following table, the mean percentage of significant groups is 4
 Based on the result, we could say most derivatives we calculated from movement characteristics differ significantly between transport mode. And therefore, we believe using these derivatives to identify travel mode is feasible.
 
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 #count of segments:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
 
@@ -1600,7 +1581,7 @@ knitr::kable(tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport")
 ```
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # extrafont::font_import()
 
 # Clean data for statistics
@@ -1908,7 +1889,7 @@ ttesttable[order(ttesttable$significant_percent,decreasing=TRUE),]
 
 
 
-```{r}
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 #maps per mean of transport?:
 
 mvmt_data_filter <- mvmt_data %>% filter(tmode_manual == "plane") #%>% filter(!is.na(tmode_manual)) #%>% filter(region == "Zurich") 
@@ -1938,7 +1919,7 @@ m
 
 Two different supervised algorithms will be tested:  
 - K-Nearest Neighbors  
-- Random forest  
+- Random forest (mutliple Decision Tree)  
 
 We suspect random forest will perform better, as this algorithm is more suitable to categorical data.  
 
@@ -2012,7 +1993,6 @@ mvmt_all_train_chunk <- mvmt_all_train
 mvmt_all_train_chunk$chunk <- chunk
 ```
 
-
 The classification will also be tried without the environment annotations features to see if how good the classification could still be or not be, with only trajectory derivative.  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
@@ -2032,7 +2012,6 @@ chunk <- as.factor(chunk)
 mvmt_all_train_nprox_chunk <- mvmt_all_train_nprox
 mvmt_all_train_nprox_chunk$chunk <- chunk
 ```
-
 
 Below, is the distribution of the segments within the train and validation sets. Some transport modes do not have a lot of segments (kick-scooter, run, t_bar). The algorithms might have some difficulties with it (imbalance training sets).  
 
@@ -2059,9 +2038,12 @@ Knn is non linear supervised classifier. It works by assigning the major class l
 
 #### Knn with all feature attributes
 
-The main parameter to set for Knn is "k" the number of neighbours considered. Different sets of number will be tested. Try kv = 5, 11, 50 and 5 is the best Try kv = 3, 4, 5, 7 and 3 is the best Try kv = 1, 2, 3 and 1 is the best
+The main parameter to set for Knn is "k" the number of neighbours considered. Different sets of number will be tested.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
+
+ # Try kv = 5, 11, 50 and 5 is the best Try kv = 3, 4, 5, 7 and 3 is the best Try kv = 1, 2, 3 and 1 is the best
+
 # Build models with 3 parameter sets
 for(m in 1:3){
   knn_train_cva <- numeric(0)
@@ -2129,22 +2111,10 @@ knitr::kable(res_model_knn, caption = "Knn - models Accuracy on train and test d
 
 Based on the accuracy of each model for train/test sets, the first model with 3 nearest neighbours seems to perform best both on train and test sets. This model will then be kept for further analysis.
 
-**(IN THE RESULT SECTION?)**  
 **Confusion matrix - knn**
-The confusion matrix below indicates the correct classification of the segments in the tmode category. The overall accuracy is of ~0.7. The kappa coefficient is of ~0.6 and significant (p value < 0.05). This indicates a rather correct fiability of the model.  
+The confusion matrix below indicates the correct classification of the segments in the tmode categories.  
 
-On the confusion matrix, we can see several things:  
-- This seems to be confusion between the train and car segments.  
-- Walk is almost always correctly classified.
-- Bike, boat, cable_car, kick_scooter, t_bar have some issues (not well represented in test set).
-
-The classes which were the best predicted correctly (sensivity):  
-- > 0.7 : tram, car, plane, ski_lift, walk  
-- 0.5 - 0.6: bus, t_bar, train, run  
-- <0.3: bike, ski: a bit better  
-- kick-scooter, cable_car, boat  
-
-The least performent tmode (kick-scooter, cable_car, boat, t_bar) are the one with the least representation in the test  set (prevalence), and the best have the most (train, tram, walk, car).
+We can see Knn had some confusion between car and train.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Confusion matrix
@@ -2231,15 +2201,12 @@ cm_knn_nprox <- caret::confusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label
 print(cm_knn_nprox)
 ```
 
--> 0.7, kappa = 0.64
-
 ### 2.3.3 Random Forest
 Random Forest is a multiple decision tree algorithm.  
 
-
 #### RF with all features attribute
 
-The main parameters is the number of trees. Three different values will be tested: 20, 40 and 80.  
+The main parameters is the number of trees. Three sets of value will be tested.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build 3 models with different parameter sets
@@ -2344,9 +2311,7 @@ The accuracy of each model for train/test sets tells us that the performances ar
 
 **Confusion matrix - RF**  
 
-(Comment Random forest results.)  
-kappa: 0.9 with high significant (p_value < 0.05)  
-Accuracy: 0.91  
+We can see RF perform generally better than Knn. There are no obvious confusion of train and car.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 print("Confusion matrix - RF")
@@ -2736,6 +2701,8 @@ ggcorrplot(corr, hc.order = FALSE, type = "lower",
 
 **Summary of the accuracy and kappas of the 4 considered models**  
 
+The model with the best accuracy and kapp is RF. Removing the environment annotations did not change a lot for Knn but we can see it had an impact on RF.
+
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 models <- c("Knn", "Knn no environment", "RF", "RF no environment")
 data.frame(models = models, 
@@ -2744,7 +2711,9 @@ data.frame(models = models,
            )
 ```
 
-**Summary of the Precision, Recall and F1**
+**Summary of the Precision, Recall and F1**  
+
+Rf also has better precision, recall and F1 values than Knn.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Extract precision, recall and F1 from confusion matrix
@@ -2821,7 +2790,7 @@ print(ConfusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label))
 
 ### 3.2.3 Importances of features in RF
 
-(comment importances of features)  
+For Random Forest we can see the most important features. The meanDecreaseAccuracy indicates the influence of the feature on the performance, and the MeanDecreaseGini the influence on the homogenity.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 #importance(rf1)
@@ -3340,25 +3309,25 @@ m
 
 ## 4.2 Problems encoutered / challenges
 
--   posmo map matching\
--   long calculation time\
--   labelizing takes a long time\
--   overfitting random forest
+**Posmo map matching**  
+We had to manually unlabelized the sections in train, as Posmo processing map matched the segments. To train our algorithms, we needed as raw data as possible.
+
+**Not enough data in certains categories**  
+It concerns t-bar and kick-scooter for instance.  
+
+**Manual labelizing**  
+The labelization of our data was a long and tedious process. However, it was necessary to have correct tmode.  
 
 ## 4.3 Limitations
 
-**Data availability**
--   data attributes availability ( for ex. no height for planes) ...  
-
-**Algorithms tight to the specific area of study**
-DATA LIMITATION
-
+**Data limitation**  
+Our algorithms are tight to the specific area of study.  
 A lot of our trajectories are the same and redundant. We mainly took the same tram or bus lines (home to university, home to sport, ...).  
 This means our algorithms have been trained on a specific region or network, which means the algorithm might not work efficiently in other area. However, this is probably only an issue for public transports modes such as bus, trams, boat, ski-lift & t-bar & cable-car and train. Other means such as walk, are not tied to a specific network and differences between regions are not expected.  
 
-Typically countryside bus, tram in Lsne (different network), bus in Lsne or Yverdon.
+Typically, in the results, we have seen there was some trouble identifying the countryside bus, because it goes on roads outside of cities with higher speed. It would be interesting to have more countryside bus to see if a difference could be identified but this is probably hard.  
 
-isCloseToBus -> correlated to isCloseToTram
+Another observation is that proximity to bus are correlated with proximity to tram. This is the case for Zurich, but not for others cities without trams or less.  
 
 # 5. Conclusion
 
@@ -3366,8 +3335,8 @@ isCloseToBus -> correlated to isCloseToTram
 
 # 6. References
 
--   DHM25 Swisstopo: <https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html>
+Zeng, J., Yu, Y., Chen, Y., Yang, D., Zhang, L., & Wang, D. (2023). Trajectory-as-a-Sequence: A novel travel mode identification framework. Transportation Research Part C: Emerging Technologies, 146, 103957. doi:10.1016/j.trc.2022.103957
 
--   Swissboundaries: <https://www.swisstopo.admin.ch/en/geodata/landscape/boundaries3d.html>
+Sadeghian, P., Zhao, X., Golshan, A., & Håkansson, J. (2022). A stepwise methodology for transport mode detection in GPS tracking data. Travel Behaviour and Society, 26, 159–167. doi:10.1016/j.tbs.2021.10.004
 
--   SwissTLM3D: ... source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
+Data sources for environment datasets: map.geoadmin.ch
