@@ -1,7 +1,7 @@
 ---
 title: "GEO880-G3-Report"
 author: "Martine Besse & Yelu He"
-date: "2023-06-28"
+date: "2023-07-01"
 always_allow_html: true
 output:
   html_document:
@@ -48,6 +48,15 @@ check_pkg("leaflet")
 check_pkg("maptools")
 check_pkg("concaveman") # for concave hulls
 
+# Plot
+check_pkg("tidyverse")
+check_pkg("hrbrthemes")
+check_pkg("viridis")
+check_pkg("tidyr")
+check_pkg("forcats")
+check_pkg("RColorBrewer")
+check_pkg("extrafont")
+
 # Machine learning
 check_pkg("caTools")
 check_pkg("class")
@@ -62,9 +71,9 @@ check_pkg("rmdwc")
 
 # DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-#data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # (Criteria):
@@ -873,7 +882,7 @@ trackAngle <- function(Ecol, Ncol){
     if(n > 2){ 
       angles <- abs(c(trackAzimuth(coords), 0) -
                     c(0, rev(trackAzimuth(coords[nrow(coords):1, ]))))
-      angles <- ifelse(angles > 180, 360 - angles, angles)
+      # angles <- ifelse(angles > 180, 360 - angles, angles) #[0,180] to [0,360]
       angles[is.na(angles)] <- 180
       return(c(0, angles[-c(1, length(angles))], 0))
       }
@@ -963,6 +972,9 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
     mutate(turning_angle = trackAngle(E, N))
+
+#mvmt_data_segmentized %>% filter(tmode_manual == "ski_lift") %>% View()
+
 
 # Acceleration for each point in each segment
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
@@ -1154,6 +1166,9 @@ mvmt_seg_summary <- mvmt_seg_final %>%
     ta_range = max(turning_angle) - min(turning_angle),
     # Geometry
     lst_geometry = list(geometry))
+
+
+
 ```
 
 ### 2.1.4 Trajectories annotation
@@ -1223,7 +1238,6 @@ joined_data <- mvmt_seg_final %>% st_join(lakes_shp, join = st_is_within_distanc
 mvmt_seg_final$isClosetoLakes <- !is.na(joined_data$environment)
 
 # 6) SKI LIFTS AND CABLE CARS
-
 cables_shp <- read_sf(here(data_folder, "ski_lift_cable_car", "skilift_cablecar_raw.shp")) %>% st_zm() %>% st_union() %>% st_as_sf() %>% st_transform(crs=2056) %>% st_intersection(concave_hull) %>% mutate(environment = "cable_cars") %>% st_simplify(dTolerance = 1) 
 
 joined_data <- mvmt_seg_final %>%
@@ -1422,6 +1436,126 @@ tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc
 knitr::kable(tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport")
 ```
+
+```{r}
+# extrafont::font_import()
+
+# For statistics
+mvmt_sta <- merge(st_drop_geometry(mvmt_seg_summary),
+                  st_drop_geometry(mvmt_seg_annotations_summarized),
+                  by = c('segment_ID_final', 'tmode_manual',
+                         'duration_secs', 'static_percent'))
+mvmt_sta <- mvmt_sta %>% 
+  dplyr::select(-c("lst_geometry")) %>% 
+  filter(tmode_manual != "unclassified")
+
+
+# Remove
+mvmt_sta <- na.omit(mvmt_sta)
+
+# Convert boolean to 0/1 value
+mvmt_sta$isClosetoLakes <- as.integer(as.logical(mvmt_sta$isClosetoLakes))
+mvmt_sta$isClosetoRails <- as.integer(as.logical(mvmt_sta$isClosetoRails))
+mvmt_sta$isClosetoBus <- as.integer(as.logical(mvmt_sta$isClosetoBus))
+mvmt_sta$isClosetoTrams <- as.integer(as.logical(mvmt_sta$isClosetoTrams))
+mvmt_sta$isClosetoHighways <- as.integer(as.logical(mvmt_sta$isClosetoHighways))
+mvmt_sta$isClosetoCables <- as.integer(as.logical(mvmt_sta$isClosetoCables))
+mvmt_sta$isHighAltitude <- as.integer(as.logical(mvmt_sta$isHighAltitude))
+
+
+
+# mvmt_sta %>%
+#   ggplot(aes(x = tmode_manual, y = duration_secs, fill = tmode_manual)) +
+#     geom_violin() +
+#     scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
+#     theme_ipsum() +
+#     theme(
+#       legend.position="none",
+#       plot.title = element_text(size=11)
+#     ) +
+#     ggtitle("Violin chart") +
+#     xlab("")
+
+# length(mvmt_sta)
+mvmt_sta %>%
+  # mutate(text = fct_reorder(text, value)) %>% # Reorder data
+  ggplot(aes(x = tmode_manual, y = duration_secs, 
+             fill = tmode_manual, color = tmode_manual)) +
+    geom_violin(width=2.1, size=0.2) +
+    scale_fill_viridis(discrete=TRUE) +
+    scale_color_viridis(discrete=TRUE) +
+    theme_ipsum() +
+    theme(
+      legend.position="none"
+    ) +
+    coord_flip() + # This switch X and Y axis and allows to get the horizontal version
+    xlab("") +
+    ylab("Duration(seconds)")
+
+colourCount = length(unique(mvmt_sta$tmode_manual))
+getPalette = colorRampPalette(brewer.pal(9, "Set3"))
+# ggplot(mvmt_sta, aes(x=tmode_manual, y=duration_secs, fill=tmode_manual)) + 
+#   geom_boxplot(alpha=0.7) +
+#   theme(legend.position="none") +
+#   scale_fill_manual(values = getPalette(colourCount))
+
+
+q <- length(mvmt_sta)
+for(i in 3:q){
+  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
+                               fill=tmode_manual)) + geom_boxplot(alpha=0.7) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = getPalette(colourCount))+
+    ggtitle("Barplot") +
+    ylab(colnames(mvmt_sta)[i]) +
+    coord_flip()
+  print(pl)
+}
+
+
+limlow <- mvmt_sta %>% group_by(tmode_manual) %>%
+  quantile(duration_secs, c(0.3, 0.7))[1]
+limhigh <- mvmt_sta %>% group_by(tmode_manual) %>%
+  (quantile(mvmt_sta$duration_secs, c(0.3, 0.7)))
+
+limtable <- mvmt_sta %>% filter(tmode_manual == "run",)%>%
+summarize(
+     lowlim = quantile(mvmt_sta$duration_secs, 0.1)[[1]],
+     highlim = quantile(mvmt_sta$duration_secs, 0.9)[[1]])
+
+
+
+mvmt_walk <- mvmt_sta %>% filter(tmode_manual == "walk")
+lowlim = quantile(mvmt_walk$duration_secs, 0.1)[[1]]
+highlim = quantile(mvmt_walk$duration_secs, 0.9)[[1]]
+
+q <- length(mvmt_sta)
+for(i in 3:q){
+  
+  limtable <- mvmt_walk %>% filter(tmode_manual == "walk") %>%
+  summarize(
+  lowlim = quantile(mvmt_walk[,i], 0.1)[[1]],
+  highlim = quantile(mvmt_walk[,i], 0.9)[[1]])
+  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
+                               fill=tmode_manual)) + 
+    geom_boxplot(alpha=0.7, outlier.shape = NA) +
+    # coord_cartesian(ylim = c(min(limtable$lowlim),
+    #                          max(limtable$highlim))) +
+    # coord_cartesian(ylim = c(lowlim, highlim)) + 
+    # coord_cartesian(ylim = (boxplot.stats(mvmt_sta[,i])$stats[c(1, 5)])*1.05) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = getPalette(colourCount)) +
+    ggtitle("Boxplot") +
+    ylab(colnames(mvmt_sta)[i]) +
+    # coord_cartesian(ylim = c(0, 20))
+    coord_flip(ylim = c(min(limtable$lowlim), max(limtable$highlim)))
+  print(pl)
+}
+
+
+```
+
+
 
 ```{r}
 #maps per mean of transport?:
