@@ -56,6 +56,7 @@ check_pkg("tidyr")
 check_pkg("forcats")
 check_pkg("RColorBrewer")
 check_pkg("extrafont")
+check_pkg("ggcorrplot") #for correlation matrix
 
 # Statistics
 check_pkg("rstatix")
@@ -69,7 +70,6 @@ check_pkg("MLmetrics")
 check_pkg("randomForest")
 check_pkg("rpart")
 
-check_pkg("ggcorrplot") #for correlation matrix
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
@@ -105,7 +105,7 @@ Based on the answer, a model will then be attempted to build. We will apply it t
 
 ## 1.1 Research questions
 
-1.  Do the characteristics of movement trajectories differ beetween different travel modes?
+1.  Do the characteristics of movement trajectories differ between different travel modes?
 2.  Could the characteristics be used to identify travel mode?
 3.  How to identify different travel modes with movement trajectories? Could a identification model be built?
 4.  How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
@@ -649,9 +649,8 @@ caption = "Number of points labelized per mode of transport - posmo")
 
 
 #### GPS data
-
 **Data cleaning and basic processing**\
-The trajectory points recorded on posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. No further preparation were required.
+The trajectory points recorded on GPS are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. And the time recorded was converted to the time zone 'Europe/Zurich'. No further preparation were required. 
 
 ```{r gpd_data, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
@@ -1127,21 +1126,18 @@ mvmt_data_segmentized <- mvmt_data_segmentized |>
     ) |>
     ungroup()
 
-# Turning angle of each point in each segment
+# Calculate turning angle of each point in each segment
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
     mutate(turning_angle = trackAngle(E, N))
 
-#mvmt_data_segmentized %>% filter(tmode_manual == "ski_lift") %>% View()
-
-
-# Acceleration for each point in each segment
+# Calculate acceleration for each point in each segment
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   group_by(segment_ID_both) %>%
     mutate(acceleration_h = (speed_ms - lead(speed_ms))/timelag,
            acceleration_v = (speed_v - lead(speed_v)/timelag))
 
-# Remove na with 0 in acceleration columns
+# Remove NA with 0 in acceleration columns
 mvmt_data_segmentized <- mvmt_data_segmentized %>%
   mutate(
     acceleration_h = replace(acceleration_h, is.na(acceleration_h), 0),
@@ -1289,7 +1285,14 @@ visu_data |>
 
 ### 2.1.3 Trajectories derivatives
 
-Compute trajectories derivatives for each segment
+After assigning unique ID for every segments, we then calculated the following characteristics of points in each trajectory:
+
+-   Step length (both horizontal and vertical)
+-   Speed (both horizontal and vertical)
+-   Acceleration (both horizontal and vertical)
+-   Turning angle
+
+We summarized derivatives for each trajectory by calculating mean value, standard deviation, and range of the aforementioned characteristics.
 
 ```{r derivative_summary, echo = TRUE, warning = FALSE, message = FALSE}
 # SUMMARIZE
@@ -1325,8 +1328,6 @@ mvmt_seg_summary <- mvmt_seg_final %>%
     ta_range = max(turning_angle) - min(turning_angle),
     # Geometry
     lst_geometry = list(geometry))
-
-
 
 ```
 
@@ -1582,11 +1583,14 @@ m
 
 ## 2.2 Summarized characteristics of transport modes
 
--   Compute mean variables per segment (ex.2 task 5 (rolling windows)) -\> summarize the variables by mean of transports
+In this part, we performed statistical analysis on each trajectory derivative in order to answer the first research question, which is to see whether movement characteristics differ between different transport modes. 
 
--   general overview for each mean of transports
+For all the 28 derivatives calculated, we applied pairwise t-test to every two transport modes. And based on the result of t-test, we then could tell if one derivative is significantly different between two transport modes. We then calculated the percentage of significantly different groups among all groups. 
 
-Summary all segments from the mean of transport:
+According to the following table, the mean percentage of significant groups is 47%, and 15 derivatives have a significant percent more than 50%. The top five derivatives which differs most significantly between transport modes are mean vertical acceleration (a_v_mean), mean vertical speed (speed_v_mean), percentage of static points (static_percent), range of vertical acceleration (a_v_range), standard deviation of vertical acceleration (a_v_sd). 
+
+Based on the result, we could say most derivatives we calculated from movement characteristics differ significantly between transport mode. And therefore, we believe using these derivatives to identify travel mode is feasible.
+
 
 ```{r}
 #count of segments:
@@ -1898,8 +1902,8 @@ ttesttable$significant_percent <- (ttesttable$`*`
   (ttesttable$`*` + ttesttable$`**` + ttesttable$`***` +
   ttesttable$`****` + ttesttable$ns)
 
-ttesttable
-
+# ttesttable
+ttesttable[order(ttesttable$significant_percent,decreasing=TRUE),]
 ```
 
 
