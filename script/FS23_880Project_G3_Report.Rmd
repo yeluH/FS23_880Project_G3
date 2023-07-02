@@ -1592,7 +1592,6 @@ According to the following table, the mean percentage of significant groups is 4
 Based on the result, we could say most derivatives we calculated from movement characteristics differ significantly between transport mode. And therefore, we believe using these derivatives to identify travel mode is feasible.
 
 
-
 ```{r}
 #count of segments:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
@@ -2079,24 +2078,21 @@ Knn is non linear supervised classifier. It works by assigning the major class l
 
 #### Knn with all feature attributes
 
-The main parameter to set for Knn is "k" the number of neighbours considered. Different sets of number will be tested.
+The main parameter to set for Knn is "k" the number of neighbours considered. Different sets of number will be tested. Try kv = 5, 11, 50 and 5 is the best Try kv = 3, 4, 5, 7 and 3 is the best Try kv = 1, 2, 3 and 1 is the best
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build models with 3 parameter sets
 for(m in 1:3){
   knn_train_cva <- numeric(0)
   knn_test_cva <- numeric(0)
-  # Try kv = 5, 11, 50 and 5 is the best
-  # Try kv = 3, 4, 5, 7 and 3 is the best
-  # Try kv = 1, 2, 3 and 1 is the best
   if (m == 1){
-      kv= 3
+      kv= 1
     }
     if (m == 2){
-      kv= 10
+      kv= 2
     }
     if (m == 3){
-      kv= 50
+      kv= 3
     }
   
   for(i in 1:k_fold){
