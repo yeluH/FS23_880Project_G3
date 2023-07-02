@@ -1581,9 +1581,9 @@ m <- leaflet() %>%
 m
 ```
 
-## 2.2 Summarized characteristics of transport modes
+## 2.2 Summary of characteristics for different transport modes
 
-In this part, we performed statistical analysis on each trajectory derivative in order to answer the first research question, which is to see whether movement characteristics differ between different transport modes. 
+In this part, we performed statistical analysis on each trajectory derivative in order to answer the first research question, which is to see whether movement characteristics differ between different transport modes.
 
 For all the 28 derivatives calculated, we applied pairwise t-test to every two transport modes. And based on the result of t-test, we then could tell if one derivative is significantly different between two transport modes. We then calculated the percentage of significantly different groups among all groups. 
 
@@ -2574,11 +2574,18 @@ print(c(dmp1, dmp2, dmp3))
 
 # 3. Results
 
-## 3.1 Summarized characteristics of transport modes
-...
+## 3.1 Summary of characteristics for different transport modes
+
+We generated box plots of all transport modes for each trajectory derivative to have a better understanding the how movement characteristics differ between different all transport modes.
+
+In order to show the major distribution of value, for each derivative and each transport mode, we calculated the quantile values corresponding to probabilities of 10% and 90%. And by using the minimum of 10% quantile values and maximum of 90% quantile values as low limit and high limit, we then created the box plot focusing on the major parts of distribution.
+
+Take the box plot of static_percent for example, the groups with the highest static_ _percent are ski, bus, tram and train, which is corresponding to the movement with stops. Take the box plot of space_duration for example, space_duration of plane, train and car have higher distribution than that of other transport modes.
+
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Boxplot
+
 colourCount = length(unique(mvmt_sta$tmode_manual))
 getPalette = colorRampPalette(brewer.pal(9, "Set3"))
 
@@ -2715,15 +2722,14 @@ lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
      highlim = quantile(isHighAltitude, 0.9)[[1]])
 limtable[28,] = c(min(lim0$lowlim), max(lim0$highlim))
 
-
 q <- length(mvmt_sta)
 for(i in 3:q){
   pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i],
                                fill=tmode_manual)) +
-    geom_boxplot(alpha=0.7, outlier.shape = NA) +
-    theme(legend.position="none") +
+    geom_boxplot(alpha=0.7) + #, outlier.shape = NA) +
+    theme(legend.position="none", plot.title = element_text(hjust = 0.5)) +
     scale_fill_manual(values = getPalette(colourCount)) +
-    ggtitle("Boxplot") +
+    ggtitle(paste("Box plot of ", colnames(mvmt_sta)[i])) +
     ylab(colnames(mvmt_sta)[i]) +
     # coord_cartesian(ylim = c(0, 20))
     coord_flip(ylim = c(limtable[i-2,1], limtable[i-2,2])*1.1)
