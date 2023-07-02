@@ -82,16 +82,7 @@ data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Anal
 #data_folder <- "D:/GEO880/Project"
 ```
 
-# (Criteria):
-new length:  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
 
-Report your work in a written project report. The report has two functions:\
--- It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.\
--- It will be used to evaluate and mark your project.
-
-Your report shall: -- cover how you went about investigating your research questions. Describe your data science ideas and how you implemented your ideas. -- present the results of your study and discuss them in the light of your research questions. What have you achieved and what would be further steps for future research? -- report problems and limitations you encountered along the way and the solutions you chose to overcome these, be it limitations with respect to the data sources, the tools or any other source of limitation. -- discuss your data science choices in the light of the theory covered in the lectures, group works, and your reading assignments.
-
-Good example: <https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html>
 
 # 1. Introduction
 
@@ -2439,119 +2430,6 @@ print(cm_rf_nprox)
 
 ```
 
-### 2.3.4 Decision Tree algorithm
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
-library(rpart)
-mvmt_train_s_dt_chunk <- mvmt_all_train 
-mvmt_train_s_dt_chunk$chunk <- chunk
-# Build models with 3 parameter sets
-for(m in 1:3){
-  dt_train_cva <- numeric(0)
-  dt_test_cva <- numeric(0)
-  for(i in 1:k_fold){
-    set.seed(21)
-    if (m == 1){
-      dt <- rpart(label~.,
-              data=select(mvmt_train_s_dt_chunk[chunk != i, ], -chunk), 
-              method = "class", 
-              minsplit = 100)
-    }
-    if (m == 2){
-      dt <- rpart(label~.,
-              data=select(mvmt_train_s_dt_chunk[chunk != i, ], -chunk), 
-              method = "class", 
-              minsplit = 200)
-    }
-    if (m == 3){
-      dt <- rpart(label~.,
-              data=select(mvmt_train_s_dt_chunk[chunk != i, ], -chunk), 
-              method = "class", 
-              minbucket= 400)
-    }
-    dt_train_pred <- predict(dt, select(mvmt_all_train, -label), type="class")
-    dt_test_pred <- predict(dt, select(mvmt_all_test, -label), type="class")
-    dt_train_cva <- rbind(dt_train_cva, Accuracy(dt_train_pred, mvmt_all_train$label))
-    dt_test_cva <- rbind(dt_test_cva, Accuracy(dt_test_pred, mvmt_all_test$label))
-  }
-  print(dt_train_cva)
-  print(dt_test_cva)
-  
-  if (m == 1){
-    dt_train_pred1 <- dt_train_pred
-    dt_test_pred1 <-  dt_test_pred
-    dt_train_cva1 <- dt_train_cva
-    dt_test_cva1 <- dt_test_cva 
-    dt_train_cva_mean1<-mean(dt_train_cva)
-    dt_test_cva_mean1<-mean(dt_test_cva)
-    }
-  if (m == 2){
-    dt_train_pred2 <- dt_train_pred
-    dt_test_pred2 <-  dt_test_pred
-    dt_train_cva2 <- dt_train_cva
-    dt_test_cva2 <- dt_test_cva 
-    dt_train_cva_mean2<-mean(dt_train_cva)
-    dt_test_cva_mean2<-mean(dt_test_cva)
-    }
-  if (m == 3){
-    dt_train_pred3 <- dt_train_pred
-    dt_test_pred3 <-  dt_test_pred
-    dt_train_cva3 <- dt_train_cva
-    dt_test_cva3 <- dt_test_cva 
-    dt_train_cva_mean3<-mean(dt_train_cva)
-    dt_test_cva_mean3<-mean(dt_test_cva)
-    }}
-
-dtrm1 <- dt_train_cva_mean1
-dtrm2 <- dt_train_cva_mean2
-dtrm3 <- dt_train_cva_mean3
-print("Overall accuracy of the 3 train models")
-print(c(dtrm1, dtrm2, dtrm3))
-
-dtem1 <- dt_test_cva_mean1
-dtem2 <- dt_test_cva_mean2
-dtem3 <- dt_test_cva_mean3
-print("Overall accuracy of the 3 test models")
-print(c(dtem1, dtem2, dtem3))
-
-dmf1 <- mean(rbind(dt_train_cva1,
-                   F1_Score(dt_train_pred1,
-                            mvmt_all_train$label)))
-dmf2 <- mean(rbind(dt_train_cva2,
-                   F1_Score(dt_train_pred2,
-                            mvmt_all_train$label)))
-dmf3 <- mean(rbind(dt_train_cva3,
-                   F1_Score(dt_train_pred3,
-                            mvmt_all_train$label)))
-print("Mean F1-score of the 3 train models")
-print(c(dmf1, dmf2, dmf3))
-
-dmr1 <- mean(rbind(dt_train_cva1,
-                   Recall(dt_train_pred1,
-                          mvmt_all_train$label)))
-dmr2 <- mean(rbind(dt_train_cva2,
-                   Recall(dt_train_pred2,
-                          mvmt_all_train$label)))
-dmr3 <- mean(rbind(dt_train_cva3,
-                   Recall(dt_train_pred3,
-                          mvmt_all_train$label)))
-print("Mean Recall of the 3 train models")
-print(c(dmr1, dmr2, dmr3))
-
-dmp1 <- mean(rbind(dt_train_cva1,
-                   Precision(dt_train_pred1,
-                             mvmt_all_train$label)))
-dmp2 <- mean(rbind(dt_train_cva2,
-                   Precision(dt_train_pred2,
-                             mvmt_all_train$label)))
-dmp3 <- mean(rbind(dt_train_cva3,
-                   Precision(dt_train_pred3,
-                             mvmt_all_train$label)))
-print("Mean Precision of the 3 train models")
-print(c(dmp1, dmp2, dmp3))
-
-```
-
-
 
 # 3. Results
 
@@ -3334,9 +3212,21 @@ m
 
 # 4. Discussion
 
-## 4.1 RQ
+## 4.1 Research Question
 
--   Answer the 4 RQ
+-   Do the characteristics of movement trajectories differ between different travel modes?
+-   Could the characteristics be used to identify travel mode?
+
+Yes, we applied pairwise t-test on all 28 trajectory derivative between every 2 transport modes in section 2.2. Based on the result, Most trajectory derivatives we generated are significantly different between different transport modes.
+
+-   How to identify different travel modes with movement trajectories? 
+
+By calculating the trajectory derivatives and applying machine learning algorithms, we were able to build a KNN(k-nearest neighbour) model and a RF(random forest) model to identify transport modes using trajectory derivatives. The result of modelling is listed in section 3.2.
+
+-   How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
+
+We generated confusion matrix and calculated accuracy, precision, recall, F1 score to find the best parameters for machine learning algorithms and to assess the identification model, which could be found in section 2.3 and section 3.2. The identification models perform pretty well overall.
+
 
 ## 4.2 Problems encoutered / challenges
 
@@ -3362,6 +3252,15 @@ isCloseToBus -> correlated to isCloseToTram
 
 # 5. Conclusion
 
+Our project aims at defining, describing and identifying movement patterns for different travel modes. 
+
+Movement data has been collected over a period of approximately two months and a various range of travel modes have been recorded: train, tram, bus, car, walking, cycling, t_bar, cable_car, running, kick scooter, ski, ski-lift, plane and boat. A labeled point data set with travel modes was extracted from the collected raw data by cleaning, filtering. We then generated a trajectory data set by segmentation based on user, recording gaps, transport mode label, static point, and a defined threshold of time duration.
+
+Each trajectory was then characterized by statistics of the following metrics: speed, acceleration, sinuosity (turning angle) and distance. Annotation was done by linking this data set with environmental factors related to the studied travel mode: railway tracks, tram lines, road network, walking path, slope, etc.
+
+The difference of the aforementioned trajectory derivatives between two travel modes was tested then.
+
+We then built a KNN model and RF model using the trajectory derivatives. After evaluating the models by confusion matrix, accuracy, precision, recall, F1 score and understanding them with importance, we could say the models performed well and some trajectory derivatives are more important than others.
 ...
 
 # 6. References
