@@ -59,6 +59,7 @@ check_pkg("extrafont")
 
 # Statistics
 check_pkg("rstatix")
+check_pkg("caret")
 
 # Machine learning
 check_pkg("caTools")
@@ -66,7 +67,7 @@ check_pkg("class")
 check_pkg("forecast")
 check_pkg("MLmetrics")
 check_pkg("randomForest")
-check_pkg("caret") #for statistics
+check_pkg("rpart")
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
@@ -148,10 +149,7 @@ However, this is more important for plane: the altitude of the user cannot possi
 
 ```{r import_posmo , warning = FALSE, message = FALSE}
 # import and convert to sf object
-# posmo <- read_delim(here(data_folder, "posmo_2023-07-02.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
-
-posmo <- read_delim(here(data_folder, "posmo_2023-06-18.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
-
+posmo <- read_delim(here(data_folder, "posmo_2023-07-02.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 # Remove/rename columns
 posmo <- posmo %>% 
@@ -749,8 +747,9 @@ condition_tram <-
   gps_data$datetime >= as.POSIXct("2023-05-21 19:16:50") & gps_data$datetime <= as.POSIXct("2023-05-21 19:37:25") |
   gps_data$datetime >= as.POSIXct("2023-05-21 20:25:00") & gps_data$datetime <= as.POSIXct("2023-05-21 20:29:10") |
   gps_data$datetime >= as.POSIXct("2023-05-21 20:37:45") & gps_data$datetime <= as.POSIXct("2023-05-21 20:47:35") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 17:36:35") & gps_data$datetime <= as.POSIXct("2023-05-23 17:37:15") |
   gps_data$datetime >= as.POSIXct("2023-05-23 17:43:35") & gps_data$datetime <= as.POSIXct("2023-05-23 17:57:50") |
-  gps_data$datetime >= as.POSIXct("2023-05-23 17:43:35") & gps_data$datetime <= as.POSIXct("2023-05-23 17:57:50") |
+  gps_data$datetime >= as.POSIXct("2023-05-23 19:19:35") & gps_data$datetime <= as.POSIXct("2023-05-23 19:34:45") |
   gps_data$datetime >= as.POSIXct("2023-05-24 13:19:10") & gps_data$datetime <= as.POSIXct("2023-05-24 13:24:35") |
   gps_data$datetime >= as.POSIXct("2023-05-24 17:39:00") & gps_data$datetime <= as.POSIXct("2023-05-24 17:55:35") |
   gps_data$datetime >= as.POSIXct("2023-05-25 14:46:30") & gps_data$datetime <= as.POSIXct("2023-05-25 14:55:30") |
@@ -900,6 +899,7 @@ gps_data <- gps_data %>%
                                   condition_run ~ 'run',
                                   is.na(gps_data$tmode_manual) == TRUE ~ 'unclassified'
                                  ))
+
 ```
 
 In the GPS tracker dataset, have been recorded the following transport modes, ordered from the highest number of points (n) to the lowest:
@@ -2048,12 +2048,14 @@ The main parameter to set for Knn is "k" the number of neighbours considered. Th
 for(m in 1:3){
   knn_train_cva <- numeric(0)
   knn_test_cva <- numeric(0)
-  
+  # Try kv = 5, 11, 50 and 5 is the best
+  # Try kv = 3, 4, 5, 7 and 3 is the best
+  # Try kv = 1, 2, 3 and 1 is the best
   if (m == 1){
-      kv= 5
+      kv= 3
     }
     if (m == 2){
-      kv= 11
+      kv= 10
     }
     if (m == 3){
       kv= 50
@@ -2222,6 +2224,117 @@ importance(rf1)
 varImpPlot(rf1)
 ```
 
+### 2.3.4 Decision Tree algorithm
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+library(rpart)
+landuse_train_s_dt_chunk <- mvmt_all_train 
+landuse_train_s_dt_chunk$chunk <- chunk
+# Build models with 3 parameter sets
+for(m in 1:3){
+  dt_train_cva <- numeric(0)
+  dt_test_cva <- numeric(0)
+  for(i in 1:k_fold){
+    set.seed(21)
+    if (m == 1){
+      dt <- rpart(label~.,
+              data=select(landuse_train_s_dt_chunk[chunk != i, ], -chunk), 
+              method = "class", 
+              minsplit = 100)
+    }
+    if (m == 2){
+      dt <- rpart(label~.,
+              data=select(landuse_train_s_dt_chunk[chunk != i, ], -chunk), 
+              method = "class", 
+              minsplit = 200)
+    }
+    if (m == 3){
+      dt <- rpart(label~.,
+              data=select(landuse_train_s_dt_chunk[chunk != i, ], -chunk), 
+              method = "class", 
+              minbucket= 400)
+    }
+    dt_train_pred <- predict(dt, select(mvmt_all_train, -label), type="class")
+    dt_test_pred <- predict(dt, select(mvmt_all_test, -label), type="class")
+    dt_train_cva <- rbind(dt_train_cva, Accuracy(dt_train_pred, mvmt_all_train$label))
+    dt_test_cva <- rbind(dt_test_cva, Accuracy(dt_test_pred, mvmt_all_test$label))
+  }
+  print(dt_train_cva)
+  print(dt_test_cva)
+  
+  if (m == 1){
+    dt_train_pred1 <- dt_train_pred
+    dt_test_pred1 <-  dt_test_pred
+    dt_train_cva1 <- dt_train_cva
+    dt_test_cva1 <- dt_test_cva 
+    dt_train_cva_mean1<-mean(dt_train_cva)
+    dt_test_cva_mean1<-mean(dt_test_cva)
+    }
+  if (m == 2){
+    dt_train_pred2 <- dt_train_pred
+    dt_test_pred2 <-  dt_test_pred
+    dt_train_cva2 <- dt_train_cva
+    dt_test_cva2 <- dt_test_cva 
+    dt_train_cva_mean2<-mean(dt_train_cva)
+    dt_test_cva_mean2<-mean(dt_test_cva)
+    }
+  if (m == 3){
+    dt_train_pred3 <- dt_train_pred
+    dt_test_pred3 <-  dt_test_pred
+    dt_train_cva3 <- dt_train_cva
+    dt_test_cva3 <- dt_test_cva 
+    dt_train_cva_mean3<-mean(dt_train_cva)
+    dt_test_cva_mean3<-mean(dt_test_cva)
+    }}
+
+dtrm1 <- dt_train_cva_mean1
+dtrm2 <- dt_train_cva_mean2
+dtrm3 <- dt_train_cva_mean3
+print("Overall accuracy of the 3 train models")
+print(c(dtrm1, dtrm2, dtrm3))
+
+dtem1 <- dt_test_cva_mean1
+dtem2 <- dt_test_cva_mean2
+dtem3 <- dt_test_cva_mean3
+print("Overall accuracy of the 3 test models")
+print(c(dtem1, dtem2, dtem3))
+
+dmf1 <- mean(rbind(dt_train_cva1,
+                   F1_Score(dt_train_pred1,
+                            mvmt_all_train$label)))
+dmf2 <- mean(rbind(dt_train_cva2,
+                   F1_Score(dt_train_pred2,
+                            mvmt_all_train$label)))
+dmf3 <- mean(rbind(dt_train_cva3,
+                   F1_Score(dt_train_pred3,
+                            mvmt_all_train$label)))
+print("Mean F1-score of the 3 train models")
+print(c(dmf1, dmf2, dmf3))
+
+dmr1 <- mean(rbind(dt_train_cva1,
+                   Recall(dt_train_pred1,
+                          mvmt_all_train$label)))
+dmr2 <- mean(rbind(dt_train_cva2,
+                   Recall(dt_train_pred2,
+                          mvmt_all_train$label)))
+dmr3 <- mean(rbind(dt_train_cva3,
+                   Recall(dt_train_pred3,
+                          mvmt_all_train$label)))
+print("Mean Recall of the 3 train models")
+print(c(dmr1, dmr2, dmr3))
+
+dmp1 <- mean(rbind(dt_train_cva1,
+                   Precision(dt_train_pred1,
+                             mvmt_all_train$label)))
+dmp2 <- mean(rbind(dt_train_cva2,
+                   Precision(dt_train_pred2,
+                             mvmt_all_train$label)))
+dmp3 <- mean(rbind(dt_train_cva3,
+                   Precision(dt_train_pred3,
+                             mvmt_all_train$label)))
+print("Mean Precision of the 3 train models")
+print(c(dmp1, dmp2, dmp3))
+
+```
 
 **Visualisation - map** (<- should do it in the knn and rf sections)
 
