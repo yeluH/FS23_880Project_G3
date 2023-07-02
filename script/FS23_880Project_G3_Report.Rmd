@@ -3242,7 +3242,7 @@ Each trajectory was then characterized by statistics of the following metrics: s
 The difference of the aforementioned trajectory derivatives between two travel modes was tested then.
 
 We then built a KNN model and RF model using the trajectory derivatives. After evaluating the models by confusion matrix, accuracy, precision, recall, F1 score and understanding them with importance, we could say the models performed well and some trajectory derivatives are more important than others.
-...
+
 
 # 6. References
 
