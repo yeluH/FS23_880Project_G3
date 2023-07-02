@@ -11,9 +11,6 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-  pdf_document:
-    toc: yes
-    toc_depth: '3'
 ---
 
 ```{r initialisation, warning = FALSE, message = FALSE}
@@ -112,15 +109,15 @@ Firstly, the points with be manually labelized with the correct transport modes.
 
 ## 2.1 Trajectories datasets
 
-- Posmo: from 30 March to 18 June  
-- GPS: from 21 April to 16 June  
+-   Posmo: from 30 March to 18 June  
+-   GPS: from 21 April to 16 June  
 
 ### 2.1.1 Data preparation
 
 We are working with two trajectory points datasets: one from posmo, and one from a GPS tracker. Some inital cleanings and adaptations are required to create an homogen trajectory dataset. In both datasets, the columns were prepared in sort to have the basic attributes:\
-- source (posmo or GPS)\
-- datetime\
-- tmode_manual - E, N, H - geometry
+-   source (posmo or GPS)\
+-   datetime\
+-   tmode_manual - E, N, H - geometry
 
 #### Posmo data
 
@@ -1315,13 +1312,13 @@ mvmt_seg_summary <- mvmt_seg_final %>%
 ### 2.1.5 Trajectories annotation
 
 Each point will be annotated with the information TRUE/FALSE of its proximity to the following environment elements:\
-- Railways (train)\
-- Trams (rails)\
-- Bus stops\
-- Highways ("Autobahn" and "Autostrasse")\
-- Cable-cars, ski-lifts and t-bars\
-- Lakes\
-- Mountainous area (altitude)
+-   Railways (train)\
+-   Trams (rails)\
+-   Bus stops\
+-   Highways ("Autobahn" and "Autostrasse")\
+-   Cable-cars, ski-lifts and t-bars\
+-   Lakes\
+-   Mountainous area (altitude)
 
 The railways for the trains and trams come from map.geoadmin.ch. The lakes, bus stops, highways and cable-cars & co comes from SwissTLM3D (swisstopo). Due to the number of water elements, only the biggest lakes have been considered. For the highways, it was decided to only take this category of road because this was the most helpful to separate with the other transport modes. Classical roads, in addition of being all other the territory, allow other transport modes such as bikes or walking. Bus networks lines were not available from swisstopo for downloading for whole Switzerland coverage, therefore the stops points were used.\
 The distance considered for proximity has been chosen individually for each transport mode, based on inspection of all the points labelized in the transport mode. Finally, the altitude simply used the heights of the points and applies a threshold. The limit of 1200m has been chosen, as it has been observed that most ski stations in the country are above this limit.
