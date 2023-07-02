@@ -145,7 +145,7 @@ However, this is more important for plane: the altitude of the user cannot possi
 
 ```{r import_posmo , warning = FALSE, message = FALSE}
 # import and convert to sf object
-posmo <- read_delim(here(data_folder, "posmo_2023-06-18.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+posmo <- read_delim(here(data_folder, "posmo_2023-07-02.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
 
 # Remove/rename columns
 posmo <- posmo %>% 
