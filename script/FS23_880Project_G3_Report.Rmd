@@ -712,6 +712,7 @@ condition_tram <-
   gps_data$datetime >= as.POSIXct("2023-04-25 19:50:45") & gps_data$datetime <= as.POSIXct("2023-04-25 19:54:25") | 
   gps_data$datetime >= as.POSIXct("2023-04-25 20:26:10") & gps_data$datetime <= as.POSIXct("2023-04-25 20:32:05") | 
   gps_data$datetime >= as.POSIXct("2023-04-29 18:06:45") & gps_data$datetime <= as.POSIXct("2023-04-29 18:12:20") | 
+  gps_data$datetime >= as.POSIXct("2023-04-30 16:32:55") & gps_data$datetime <= as.POSIXct("2023-04-30 16:34:50") | 
   gps_data$datetime >= as.POSIXct("2023-04-30 16:45:05") & gps_data$datetime <= as.POSIXct("2023-04-30 16:56:30") | 
   gps_data$datetime >= as.POSIXct("2023-04-30 17:46:25") & gps_data$datetime <= as.POSIXct("2023-04-30 18:00:00") | 
   gps_data$datetime >= as.POSIXct("2023-04-30 20:10:35") & gps_data$datetime <= as.POSIXct("2023-04-30 20:12:05") | 
@@ -794,7 +795,10 @@ condition_walk <-
   gps_data$datetime >= as.POSIXct("2023-04-25 19:05:05") & gps_data$datetime <= as.POSIXct("2023-04-25 19:08:25") |
   gps_data$datetime >= as.POSIXct("2023-04-25 20:32:45") & gps_data$datetime <= as.POSIXct("2023-04-25 20:35:05") |
   gps_data$datetime >= as.POSIXct("2023-04-29 21:41:45") & gps_data$datetime <= as.POSIXct("2023-04-29 22:19:40") |
+  gps_data$datetime >= as.POSIXct("2023-04-30 16:25:55") & gps_data$datetime <= as.POSIXct("2023-04-30 16:29:00") |
+  gps_data$datetime >= as.POSIXct("2023-04-30 16:57:00") & gps_data$datetime <= as.POSIXct("2023-04-30 17:45:00") |
   gps_data$datetime >= as.POSIXct("2023-04-30 18:20:25") & gps_data$datetime <= as.POSIXct("2023-04-30 19:39:00") |
+  gps_data$datetime >= as.POSIXct("2023-04-30 20:13:20") & gps_data$datetime <= as.POSIXct("2023-04-30 20:15:40") |
   gps_data$datetime >= as.POSIXct("2023-05-01 13:31:50") & gps_data$datetime <= as.POSIXct("2023-05-01 19:22:20") | 
   gps_data$datetime >= as.POSIXct("2023-05-01 19:31:55") & gps_data$datetime <= as.POSIXct("2023-05-01 19:36:05") | 
   gps_data$datetime >= as.POSIXct("2023-05-06 14:06:10") & gps_data$datetime <= as.POSIXct("2023-05-06 14:09:40") | 
