@@ -57,6 +57,9 @@ check_pkg("forcats")
 check_pkg("RColorBrewer")
 check_pkg("extrafont")
 
+# Statistics
+check_pkg("rstatix")
+
 # Machine learning
 check_pkg("caTools")
 check_pkg("class")
@@ -71,9 +74,9 @@ check_pkg("rmdwc")
 
 # DATA FOLDER
 #On Martine laptop:
-data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-#data_folder <- "D:/GEO880/Project"
+data_folder <- "D:/GEO880/Project"
 ```
 
 # (Criteria):
@@ -145,7 +148,10 @@ However, this is more important for plane: the altitude of the user cannot possi
 
 ```{r import_posmo , warning = FALSE, message = FALSE}
 # import and convert to sf object
-posmo <- read_delim(here(data_folder, "posmo_2023-07-02.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+# posmo <- read_delim(here(data_folder, "posmo_2023-07-02.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
+posmo <- read_delim(here(data_folder, "posmo_2023-06-18.csv"), ",",show_col_types = FALSE) %>% st_as_sf(coords = c("lon_x", "lat_y"), crs=4326, remove = FALSE) |> st_transform(2056)
+
 
 # Remove/rename columns
 posmo <- posmo %>% 
@@ -1587,118 +1593,304 @@ caption = "Number of points labelized per mode of transport")
 ```{r}
 # extrafont::font_import()
 
-# For statistics
+# Clean data for statistics
+mvmt_seg_annotations_summarized_value <- mvmt_seg_final %>%
+  group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
+  summarize(
+    isClosetoLakes =  sum(isClosetoLakes) / n() * 100,
+    isClosetoRails =  sum(isClosetoRails) / n() * 100,
+    isClosetoBus =  sum(isClosetoBus) / n() * 100,
+    isClosetoTrams =  sum(isClosetoTrams) / n() * 100,
+    isClosetoHighways =  sum(isClosetoHighways) / n() * 100 ,
+    isClosetoCables =  sum(isClosetoCables) / n() * 100,
+    isHighAltitude = sum(isHighAltitude) / n() * 100
+    ) %>%
+  st_drop_geometry()
+# Merge result of derivative and annotation
 mvmt_sta <- merge(st_drop_geometry(mvmt_seg_summary),
-                  st_drop_geometry(mvmt_seg_annotations_summarized),
+                  mvmt_seg_annotations_summarized_value,
                   by = c('segment_ID_final', 'tmode_manual',
                          'duration_secs', 'static_percent'))
+# Remove 'unclassified' class and 'lst_geometry' column
 mvmt_sta <- mvmt_sta %>% 
   dplyr::select(-c("lst_geometry")) %>% 
   filter(tmode_manual != "unclassified")
-
-
-# Remove
+# Remove NA
 mvmt_sta <- na.omit(mvmt_sta)
 
-# Convert boolean to 0/1 value
-mvmt_sta$isClosetoLakes <- as.integer(as.logical(mvmt_sta$isClosetoLakes))
-mvmt_sta$isClosetoRails <- as.integer(as.logical(mvmt_sta$isClosetoRails))
-mvmt_sta$isClosetoBus <- as.integer(as.logical(mvmt_sta$isClosetoBus))
-mvmt_sta$isClosetoTrams <- as.integer(as.logical(mvmt_sta$isClosetoTrams))
-mvmt_sta$isClosetoHighways <- as.integer(as.logical(mvmt_sta$isClosetoHighways))
-mvmt_sta$isClosetoCables <- as.integer(as.logical(mvmt_sta$isClosetoCables))
-mvmt_sta$isHighAltitude <- as.integer(as.logical(mvmt_sta$isHighAltitude))
+# T test for each derivative
+ttesttable <- data.frame(matrix(nrow = 30, ncol = 5))
+rownames(ttesttable) <- colnames(mvmt_sta)
+colnames(ttesttable) <- c("*",  "**", "***", "****", "ns")
+ttesttable <- tail(ttesttable, -2)
+
+index <- data.frame(matrix(nrow = 5, ncol = 2))
+index[,1] <- c("*",  "**", "***", "****", "ns")
+index[,2] <- numeric(5)
+colnames(index) <- c("p.signif", "n")
 
 
+pwc <- mvmt_sta %>%
+     pairwise_t_test(duration_secs ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[1,] <- b$n
 
-# mvmt_sta %>%
-#   ggplot(aes(x = tmode_manual, y = duration_secs, fill = tmode_manual)) +
-#     geom_violin() +
-#     scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
-#     theme_ipsum() +
-#     theme(
-#       legend.position="none",
-#       plot.title = element_text(size=11)
-#     ) +
-#     ggtitle("Violin chart") +
-#     xlab("")
+pwc <- mvmt_sta %>%
+     pairwise_t_test(static_percent ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[2,] <- b$n
 
-# length(mvmt_sta)
-mvmt_sta %>%
-  # mutate(text = fct_reorder(text, value)) %>% # Reorder data
-  ggplot(aes(x = tmode_manual, y = duration_secs, 
-             fill = tmode_manual, color = tmode_manual)) +
-    geom_violin(width=2.1, size=0.2) +
-    scale_fill_viridis(discrete=TRUE) +
-    scale_color_viridis(discrete=TRUE) +
-    theme_ipsum() +
-    theme(
-      legend.position="none"
-    ) +
-    coord_flip() + # This switch X and Y axis and allows to get the horizontal version
-    xlab("") +
-    ylab("Duration(seconds)")
+pwc <- mvmt_sta %>%
+     pairwise_t_test(space_duration ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[3,] <- b$n
 
-colourCount = length(unique(mvmt_sta$tmode_manual))
-getPalette = colorRampPalette(brewer.pal(9, "Set3"))
-# ggplot(mvmt_sta, aes(x=tmode_manual, y=duration_secs, fill=tmode_manual)) + 
-#   geom_boxplot(alpha=0.7) +
-#   theme(legend.position="none") +
-#   scale_fill_manual(values = getPalette(colourCount))
+pwc <- mvmt_sta %>%
+     pairwise_t_test(stepMean_midw_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[4,] <- b$n
 
+pwc <- mvmt_sta %>%
+     pairwise_t_test(steplength_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[5,] <- b$n
 
-q <- length(mvmt_sta)
-for(i in 3:q){
-  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
-                               fill=tmode_manual)) + geom_boxplot(alpha=0.7) +
-    theme(legend.position="none") +
-    scale_fill_manual(values = getPalette(colourCount))+
-    ggtitle("Barplot") +
-    ylab(colnames(mvmt_sta)[i]) +
-    coord_flip()
-  print(pl)
-}
-
-
-limlow <- mvmt_sta %>% group_by(tmode_manual) %>%
-  quantile(duration_secs, c(0.3, 0.7))[1]
-limhigh <- mvmt_sta %>% group_by(tmode_manual) %>%
-  (quantile(mvmt_sta$duration_secs, c(0.3, 0.7)))
-
-limtable <- mvmt_sta %>% filter(tmode_manual == "run",)%>%
-summarize(
-     lowlim = quantile(mvmt_sta$duration_secs, 0.1)[[1]],
-     highlim = quantile(mvmt_sta$duration_secs, 0.9)[[1]])
+pwc <- mvmt_sta %>%
+     pairwise_t_test(steplength_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[6,] <- b$n
 
 
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_h_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[7,] <- b$n
 
-mvmt_walk <- mvmt_sta %>% filter(tmode_manual == "walk")
-lowlim = quantile(mvmt_walk$duration_secs, 0.1)[[1]]
-highlim = quantile(mvmt_walk$duration_secs, 0.9)[[1]]
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_h_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[8,] <- b$n
 
-q <- length(mvmt_sta)
-for(i in 3:q){
-  
-  limtable <- mvmt_walk %>% filter(tmode_manual == "walk") %>%
-  summarize(
-  lowlim = quantile(mvmt_walk[,i], 0.1)[[1]],
-  highlim = quantile(mvmt_walk[,i], 0.9)[[1]])
-  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i], 
-                               fill=tmode_manual)) + 
-    geom_boxplot(alpha=0.7, outlier.shape = NA) +
-    # coord_cartesian(ylim = c(min(limtable$lowlim),
-    #                          max(limtable$highlim))) +
-    # coord_cartesian(ylim = c(lowlim, highlim)) + 
-    # coord_cartesian(ylim = (boxplot.stats(mvmt_sta[,i])$stats[c(1, 5)])*1.05) +
-    theme(legend.position="none") +
-    scale_fill_manual(values = getPalette(colourCount)) +
-    ggtitle("Boxplot") +
-    ylab(colnames(mvmt_sta)[i]) +
-    # coord_cartesian(ylim = c(0, 20))
-    coord_flip(ylim = c(min(limtable$lowlim), max(limtable$highlim)))
-  print(pl)
-}
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_h_range ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[9,] <- b$n
 
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_v_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[10,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_v_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[11,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(speed_v_range ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[12,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_h_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[13,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_h_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[14,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_h_range ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[15,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_v_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[16,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_v_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[17,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(a_v_range ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[18,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(ta_mean ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[19,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(ta_sd ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[20,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(ta_range ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[21,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoLakes ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[22,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoRails ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[23,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoBus ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[24,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoTrams ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[25,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoHighways ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[26,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isClosetoCables ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[27,] <- b$n
+
+pwc <- mvmt_sta %>%
+     pairwise_t_test(isHighAltitude ~ tmode_manual, 
+                      p.adjust.method = "bonferroni")
+a <- pwc%>%count(p.signif)
+b <- merge(index, a, by = "p.signif", all = TRUE)
+b <- replace(b,is.na(b),0)
+b$n <- b$n.x + b$n.y
+ttesttable[28,] <- b$n
+
+ttesttable$significant_percent <- (ttesttable$`*` 
+                                   + ttesttable$`**` 
+                                   + ttesttable$`***` 
+                                   + ttesttable$`****`)/
+  (ttesttable$`*` + ttesttable$`**` + ttesttable$`***` +
+  ttesttable$`****` + ttesttable$ns)
+
+ttesttable
 
 ```
 
@@ -2079,6 +2271,167 @@ ggplot() +
 
 ## 3.1 Summarized characteristics of transport modes
 ...
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Boxplot
+colourCount = length(unique(mvmt_sta$tmode_manual))
+getPalette = colorRampPalette(brewer.pal(9, "Set3"))
+
+# For 28 variables
+limtable <- data.frame(matrix(nrow = 30, ncol = 2))
+rownames(limtable) <- colnames(mvmt_sta)
+limtable <- tail(limtable, -2)
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(duration_secs, 0.1)[[1]],
+     highlim = quantile(duration_secs, 0.9)[[1]])
+limtable[1,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(static_percent, 0.1)[[1]],
+     highlim = quantile(static_percent, 0.9)[[1]])
+limtable[2,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(space_duration, 0.1)[[1]],
+     highlim = quantile(space_duration, 0.9)[[1]])
+limtable[3,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(stepMean_midw_mean, 0.1)[[1]],
+     highlim = quantile(stepMean_midw_mean, 0.9)[[1]])
+limtable[4,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(steplength_mean, 0.1)[[1]],
+     highlim = quantile(steplength_mean, 0.9)[[1]])
+limtable[5,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(steplength_sd, 0.1)[[1]],
+     highlim = quantile(steplength_sd, 0.9)[[1]])
+limtable[6,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_h_mean, 0.1)[[1]],
+     highlim = quantile(speed_h_mean, 0.9)[[1]])
+limtable[7,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_h_sd, 0.1)[[1]],
+     highlim = quantile(speed_h_sd, 0.9)[[1]])
+limtable[8,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_h_range, 0.1)[[1]],
+     highlim = quantile(speed_h_range, 0.9)[[1]])
+limtable[9,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_v_mean, 0.1)[[1]],
+     highlim = quantile(speed_v_mean, 0.9)[[1]])
+limtable[10,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_v_sd, 0.1)[[1]],
+     highlim = quantile(speed_v_sd, 0.9)[[1]])
+limtable[11,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(speed_v_range, 0.1)[[1]],
+     highlim = quantile(speed_v_range, 0.9)[[1]])
+limtable[12,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_h_mean, 0.1)[[1]],
+     highlim = quantile(a_h_mean, 0.9)[[1]])
+limtable[13,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_h_sd, 0.1)[[1]],
+     highlim = quantile(a_h_sd, 0.9)[[1]])
+limtable[14,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_h_range, 0.1)[[1]],
+     highlim = quantile(a_h_range, 0.9)[[1]])
+limtable[15,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_v_mean, 0.1)[[1]],
+     highlim = quantile(a_v_mean, 0.9)[[1]])
+limtable[16,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_v_sd, 0.1)[[1]],
+     highlim = quantile(a_v_sd, 0.9)[[1]])
+limtable[17,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(a_v_range, 0.1)[[1]],
+     highlim = quantile(a_v_range, 0.9)[[1]])
+limtable[18,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(ta_mean, 0.1)[[1]],
+     highlim = quantile(ta_mean, 0.9)[[1]])
+limtable[19,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(ta_sd, 0.1)[[1]],
+     highlim = quantile(ta_sd, 0.9)[[1]])
+limtable[20,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(ta_range, 0.1)[[1]],
+     highlim = quantile(ta_range, 0.9)[[1]])
+limtable[21,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoLakes, 0.1)[[1]],
+     highlim = quantile(isClosetoLakes, 0.9)[[1]])
+limtable[22,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoRails, 0.1)[[1]],
+     highlim = quantile(isClosetoRails, 0.9)[[1]])
+limtable[23,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoBus, 0.1)[[1]],
+     highlim = quantile(isClosetoBus, 0.9)[[1]])
+limtable[24,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoTrams, 0.1)[[1]],
+     highlim = quantile(isClosetoTrams, 0.9)[[1]])
+limtable[25,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoHighways, 0.1)[[1]],
+     highlim = quantile(isClosetoHighways, 0.9)[[1]])
+limtable[26,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isClosetoCables, 0.1)[[1]],
+     highlim = quantile(isClosetoCables, 0.9)[[1]])
+limtable[27,] = c(min(lim0$lowlim), max(lim0$highlim))
+lim0 <- mvmt_sta %>% group_by(tmode_manual) %>% summarize(
+     lowlim = quantile(isHighAltitude, 0.1)[[1]],
+     highlim = quantile(isHighAltitude, 0.9)[[1]])
+limtable[28,] = c(min(lim0$lowlim), max(lim0$highlim))
+
+
+q <- length(mvmt_sta)
+for(i in 3:q){
+  pl <- ggplot(mvmt_sta, aes(x = tmode_manual, y = mvmt_sta[,i],
+                               fill=tmode_manual)) +
+    geom_boxplot(alpha=0.7, outlier.shape = NA) +
+    theme(legend.position="none") +
+    scale_fill_manual(values = getPalette(colourCount)) +
+    ggtitle("Boxplot") +
+    ylab(colnames(mvmt_sta)[i]) +
+    # coord_cartesian(ylim = c(0, 20))
+    coord_flip(ylim = c(limtable[i-2,1], limtable[i-2,2])*1.1)
+  print(pl)
+}
+
+```
+
+
+
+
+
+
 
 ## 3.2 Machine learning: K-Nearest Neighbours
 ...
