@@ -3318,6 +3318,9 @@ It concerns t-bar and kick-scooter for instance.
 **Manual labelizing**  
 The labelization of our data was a long and tedious process. However, it was necessary to have correct tmode.  
 
+**Statics detection**  
+It was a challenge to remove the statics due to the differences of all transport modes. This should be improved.  
+
 ## 4.3 Limitations
 
 **Data limitation**  
