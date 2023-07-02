@@ -46,6 +46,7 @@ check_pkg("lubridate") #for timezones
 check_pkg("raster")
 check_pkg("leaflet")
 check_pkg("maptools")
+check_pkg("concaveman") # for concave hulls
 
 # Machine learning
 check_pkg("caTools")
@@ -53,7 +54,7 @@ check_pkg("class")
 check_pkg("forecast")
 check_pkg("MLmetrics")
 check_pkg("randomForest")
-check_pkg("concaveman") # for concave hulls
+check_pkg("caret") #for statistics
 
 #https://cran.r-project.org/web/packages/rmdwc/rmdwc.pdf
 check_pkg("rmdwc")
@@ -67,84 +68,71 @@ data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Anal
 ```
 
 # (Criteria):
-new length: 
-  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
+new length:  Length of report (approx. 15000 char (incl. spaces, incl. References list, excl. Code listing), 20000 char max)
 
-Report your work in a written project report. The report has two functions:  
-– It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.  
-– It will be used to evaluate and mark your project.
+Report your work in a written project report. The report has two functions:\
+-- It shall serve you as documentation of what you did, such that at a later stage you can use the report in one of your own projects.\
+-- It will be used to evaluate and mark your project.
 
-Your report shall:
-– cover how you went about investigating your research questions. Describe your data science ideas and how you implemented your ideas.
-– present the results of your study and discuss them in the light of your research questions. What have you achieved and what would be further steps for future research?
-– report problems and limitations you encountered along the way and the solutions you chose to overcome these, be it limitations with respect to the data sources, the tools or any other source of limitation.
-– discuss your data science choices in the light of the theory covered in the lectures, group works, and your reading assignments.
+Your report shall: -- cover how you went about investigating your research questions. Describe your data science ideas and how you implemented your ideas. -- present the results of your study and discuss them in the light of your research questions. What have you achieved and what would be further steps for future research? -- report problems and limitations you encountered along the way and the solutions you chose to overcome these, be it limitations with respect to the data sources, the tools or any other source of limitation. -- discuss your data science choices in the light of the theory covered in the lectures, group works, and your reading assignments.
 
-Good example: https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html
+Good example: <https://fbilan.github.io/GEO880_2020/Project_GEO880_Wysling_Biland.html>
 
 # 1. Introduction
+
+Our project aims at defining, describing and identifying movement patterns for different travel modes. Movement data has been collected over a period of approximately two months and a various range of travel modes have been recorded: train, tram, bus, car, walking, cycling, running, kick-scooter, ski, ski-lift and cable-car, boat and plane. A labeled dataset with travel modes will be extracted from the collected raw data by cleaning, filtering and segmentation.
+
+The movement pattern for each travel mode will first be characterized by the following metrics: speed (acceleration, deceleration), sinuosity (angle, direction), and environmental factors related to the studied travel mode: proximity to railway tracks, tram lines, road network, walking path, slope, etc. **Furthermore, it will be described and summarized with the knowledge of previous studies on travel modes identification from GPS tracks.**
+
+In a second step, the suitability of these characteristics for identifying travel modes will be studied. Limitation of data and methods will also be discussed. For example are the difference of the aforementioned chracteristics significant between two travel modes, and does our recorded data contain enough information.
+
+Based on the answer, a model will then be attempted to build. We will apply it to collected data to detect different travel modes. The results of the identification will finally be evaluated with the labeled dataset.
+
 ## 1.1 Research questions
-1. Do the characteristics of movement trajectories differ beetween different travel modes?
-2. Could the characteristics be used to identify travel mode?
-3. How to identify different travel modes with movement trajectories? Could a identification model be built?
-4. How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
+
+1.  Do the characteristics of movement trajectories differ beetween different travel modes?
+2.  Could the characteristics be used to identify travel mode?
+3.  How to identify different travel modes with movement trajectories? Could a identification model be built?
+4.  How accurate and efficient could different travel modes be identified based on the aforementioned identification model?
 
 ## 1.2 Background
-Literature review
-- list of travel modes considered in our study.
-- characteristics specific to the mean of transport
 
-
-
-## 1.3 Datasets
-We will work with two blabla datasets (take in the proposal).
-
-```{r datasets}
-# Import the datasets
-ch_boundaries <- read_sf(here(data_folder, "boundaries", "CH_boundaries.shp")) %>% st_zm()
-
-Kanton_boundaries <- read_sf(here(data_folder, "boundaries", "Kanton_boundaries.shp")) %>% st_zm() 
-
-waadt <- Kanton_boundaries %>% filter(KANTONSNUM == 22)
-
-zh_commune <- read_sf(here(data_folder, "boundaries", "ZH_gemeinde.shp")) %>% st_zm() 
-```
-
+Literature review - list of travel modes considered in our study. - characteristics specific to the mean of transport
 
 # 2. Methodology
+
 First the trajectories data will be prepared to be fed for machine learning: data cleaning, labelizing, values extracted.
 
-To train a machine learning to classify the segments in the correct categories, we first need to clean and prepare our data.  
-Firstly, the points with be manually labelized with the correct transport modes.  Secondly, the points will be segmentized based on time gaps (error in recording or simply break in movement (night))
-Then, trajectory derivatives such as speed, sinuosity will be calculated. 
+To train a machine learning to classify the segments in the correct categories, we first need to clean and prepare our data.\
+Firstly, the points with be manually labelized with the correct transport modes. Secondly, the points will be segmentized based on time gaps (error in recording or simply break in movement (night)) Then, trajectory derivatives such as speed, sinuosity will be calculated.
 
 Labels list: boat, train, etc.
 
-Trajectories derivatives useful to determine mean of transport: for ex. mean speed, sinuosity (train, cable car, ski lift -> not much sinuosity). Walk, car, ski -> more sinuosity.
+Trajectories derivatives useful to determine mean of transport: for ex. mean speed, sinuosity (train, cable car, ski lift -\> not much sinuosity). Walk, car, ski -\> more sinuosity.
 
 Here list the derivatives ?
 
 We need Height for:---
 
 ## 2.1 Trajectories datasets
-- Posmo dataset starts from 30 March to 18 June (~169 days). Time rate 10 sec
-- GPS: ...
 
-### 2.1.1 Data preparation 
-We are working with two trajectory points datasets: one from posmo, and one from a GPS tracker. Some inital cleanings and adaptations are required to create an homogen trajectory dataset.
-In both datasets, the columns were prepared in sort to have the basic attributes:  
-- source (posmo or GPS)  
-- datetime  
-- tmode_manual 
-- E, N, H 
-- geometry 
+-   Posmo dataset starts from 30 March to 18 June (\~169 days). Time rate 10 sec
+-   GPS: ...
 
-#### Posmo data 
-**Data cleaning and basic processing**  
-The trajectory points downloaded from posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. Unfortunately, posmo platform does not give the possibility to get the recorded altitude of the points. To have an approximation of the height, the altitudes were extracted thanks to the Digital Height Model DHM25 provided by swisstopo. The DHM25 gives altitude every 25m. We estimated the precision will be enough for our project. DHM25 is available as a raster. To save calculation time in the project, this was first preprocessed on QGIS to be converted in the new Swiss projection system (MN95, previously MN03).  
+### 2.1.1 Data preparation
 
-An issue with this method, is that this extraction gives the altitude on the ground, and not of the user. This is of poor impact for terrestrial movements, such as walks, trains, etc. as the differences is not more than 5 meters. As we look at ranges (above ~ 1200m) or relative derivatives (slope, speed), this is not too much influence.  
-However, this is more important for plane: the altitude of the user cannot possibly be taken this way. Therefore, no altitude value were assigned to plane segments.  
+We are working with two trajectory points datasets: one from posmo, and one from a GPS tracker. Some inital cleanings and adaptations are required to create an homogen trajectory dataset. In both datasets, the columns were prepared in sort to have the basic attributes:\
+- source (posmo or GPS)\
+- datetime\
+- tmode_manual - E, N, H - geometry
+
+#### Posmo data
+
+**Data cleaning and basic processing**\
+The trajectory points downloaded from posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. Unfortunately, posmo platform does not give the possibility to get the recorded altitude of the points. To have an approximation of the height, the altitudes were extracted thanks to the Digital Height Model DHM25 provided by swisstopo. The DHM25 gives altitude every 25m. We estimated the precision will be enough for our project. DHM25 is available as a raster. To save calculation time in the project, this was first preprocessed on QGIS to be converted in the new Swiss projection system (MN95, previously MN03).
+
+An issue with this method, is that this extraction gives the altitude on the ground, and not of the user. This is of poor impact for terrestrial movements, such as walks, trains, etc. as the differences is not more than 5 meters. As we look at ranges (above \~ 1200m) or relative derivatives (slope, speed), this is not too much influence.\
+However, this is more important for plane: the altitude of the user cannot possibly be taken this way. Therefore, no altitude value were assigned to plane segments.
 
 ```{r import_posmo , warning = FALSE, message = FALSE}
 # import and convert to sf object
@@ -188,7 +176,7 @@ posmo$H <- rasValue
 
 ```
 
-**Labelizing data**   
+**Labelizing data**
 
 ```{r labelize_posmo, echo = TRUE, warning = FALSE, message = FALSE}
 #select boats segments
@@ -498,10 +486,10 @@ knitr::kable(posmo_tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport - posmo")
 ```
 
-
 #### GPS data
-**Data cleaning and basic processing**  
-The trajectory points recorded on posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. No further preparation were required. 
+
+**Data cleaning and basic processing**\
+The trajectory points recorded on posmo are recorded in the coordinate system WGS84. The points were then converted in the Swiss system (MN95), and the coordinates extracted. No further preparation were required.
 
 ```{r gpd_data, echo = TRUE, warning = FALSE, message = FALSE}
 ## Load the data
@@ -535,8 +523,7 @@ gps_data$tmode_manual <- NA
 gps_data <- dplyr::select(gps_data, c("source", "datetime", "N", "E", "H", "geometry", "tmode_manual"))
 ```
 
-
-**Labelizing data** 
+**Labelizing data**
 
 ```{r label_gps, echo = TRUE, warning = FALSE, message = FALSE}
 # Conditions for different travel modes
@@ -763,8 +750,8 @@ knitr::kable(gps_tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport - GPS tracker")
 ```
 
-
 ### 2.1.2 Overview of trajectories datasets
+
 **Merge GPS tracker and Posmo datasets**
 
 ```{r merge_posmo_gps, echo = TRUE, warning = FALSE, message = FALSE}
@@ -772,7 +759,6 @@ caption = "Number of points labelized per mode of transport - GPS tracker")
 mvmt_data <- rbind(posmo, gps_data)
 col_order <- c("source", "datetime", "tmode_manual" ,"E", "N", "H", "geometry")
 mvmt_data <- mvmt_data[, col_order]
-
 
 # add regions (for visualisation)
 #Zurich
@@ -787,6 +773,15 @@ wt_ur <- c(2575200, 1195100)
 ws_ll <- c(2538000, 1076875)
 ws_ur <- c(2661500, 1153125)
 
+# Import the datasets
+ch_boundaries <- read_sf(here(data_folder, "boundaries", "CH_boundaries.shp")) %>% st_zm()
+
+Kanton_boundaries <- read_sf(here(data_folder, "boundaries", "Kanton_boundaries.shp")) %>% st_zm() 
+
+waadt <- Kanton_boundaries %>% filter(KANTONSNUM == 22)
+
+zh_commune <- read_sf(here(data_folder, "boundaries", "ZH_gemeinde.shp")) %>% st_zm() 
+
 mvmt_data$region <- NA
 mvmt_data <- mvmt_data |> 
   mutate(
@@ -798,7 +793,7 @@ mvmt_data <- mvmt_data |>
     )
 ```
 
-Here is the final total of recorded points and the distribution within the means of transport: 
+Here is the final total of recorded points and the distribution within the means of transport:
 
 ```{r count_points_tot, echo = TRUE, warning = FALSE, message = FALSE}
 #count of points:
@@ -808,7 +803,8 @@ knitr::kable(tmode_count %>% st_drop_geometry(),
 caption = "Number of points labelized per mode of transport")
 ```
 
-**Map general overview - transport modes:**  
+**Map general overview - transport modes:**
+
 ```{r plot_tot, echo = TRUE, warning = FALSE, message = FALSE}
 mvmt_data_classified <-  mvmt_data %>% filter(tmode_manual != "unclassified")
 ggplot() +
@@ -819,7 +815,8 @@ ggplot() +
   theme_bw()
 ```
 
-**Map local overview - Zurich:**  
+**Map local overview - Zurich:**
+
 ```{r plot_zh, echo = TRUE, warning = FALSE, message = FALSE}
 mvmt_data_zh <- mvmt_data_classified %>% filter(region == "Zurich")
 ggplot() +
@@ -830,7 +827,8 @@ ggplot() +
   theme_bw()
 ```
 
-**Map local overview - Waadt:**  
+**Map local overview - Waadt:**
+
 ```{r plot_waadt, echo = TRUE, warning = FALSE, message = FALSE}
 mvmt_data_waadt <- mvmt_data_classified %>% filter(region == "Waadt")
 ggplot() +
@@ -841,17 +839,16 @@ ggplot() +
   theme_bw()
 ```
 
-
 ### 2.1.2 Segmentation
-The points will be segmentized based on the user, gaps in recording and the labelized transport mode. The static points will be detected and removed from the dataset. Finally, to have multiple segments for machine learning, the segments will again be segmentized per duration with a defined threshold.  
 
-**Compute raw trajectory derivatives**  
-We will need the timelag and steplength between each points. 
-The timelag will be used for detecting the gaps, and the steplength to find the static points.  
+The points will be segmentized based on the user, gaps in recording and the labelized transport mode. The static points will be detected and removed from the dataset. Finally, to have multiple segments for machine learning, the segments will again be segmentized per duration with a defined threshold.
+
+**Compute raw trajectory derivatives**\
+We will need the timelag and steplength between each points. The timelag will be used for detecting the gaps, and the steplength to find the static points.\
 The points with a timelag of 0 have been removed after this step. After inspection, it seems these are points created by posmo processing of the data: At each change of transport mode, the point is duplicate with different coordinates.
 
-**Detect gaps in recording**  
-Posmo recording timerate is of 10 seconds, and the gps tracker of 5 sec. We will use a threshold value above these numbers which has been decided for 30 seconds. We estimated under 30 seconds, the gaps are not too important to define the derivative (max 3 missing points in posmo and max. 6 in GPS tracker).  
+**Detect gaps in recording**\
+Posmo recording timerate is of 10 seconds, and the gps tracker of 5 sec. We will use a threshold value above these numbers which has been decided for 30 seconds. We estimated under 30 seconds, the gaps are not too important to define the derivative (max 3 missing points in posmo and max. 6 in GPS tracker).
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # 1) Compute raw trajectory derivatives
@@ -895,10 +892,10 @@ mvmt_data_gap <- mvmt_data |>
 
 ```
 
-**Segmentation per gap, user and transport mode**  
-A unique segment ID is attributed at each point based on the user, transport mode, and gaps. Three individual indexes for those are created. The points are traversed in user and datetime order, and at each change of user or transport mode, the indexes are increased. For the gap, the last point before the gap closes the current segment index. Finally, the three indexes are combined to form unique segments.  
+**Segmentation per gap, user and transport mode**\
+A unique segment ID is attributed at each point based on the user, transport mode, and gaps. Three individual indexes for those are created. The points are traversed in user and datetime order, and at each change of user or transport mode, the indexes are increased. For the gap, the last point before the gap closes the current segment index. Finally, the three indexes are combined to form unique segments.
 
-Once the segments are created, the total duration could be calculated as well as meansteps at different window sizes. We looked at 5 points before and after the considered points, so we could calculate three mean values of the steplength: one small window (only 1 value before/after), one medium window (3 before/after), and one big window (5 before/after). These different steplength means will be used for the static calculation and to define the characteristics of transport modes.  
+Once the segments are created, the total duration could be calculated as well as meansteps at different window sizes. We looked at 5 points before and after the considered points, so we could calculate three mean values of the steplength: one small window (only 1 value before/after), one medium window (3 before/after), and one big window (5 before/after). These different steplength means will be used for the static calculation and to define the characteristics of transport modes.
 
 ```{r gap_segmentation, echo = TRUE, warning = FALSE, message = FALSE}
 # Increment an index at each change of value in the vec column.
@@ -981,11 +978,11 @@ mvmt_data_segmentized <- mvmt_data_segmentized %>%
   )
 ```
 
-**Determine static points, and remove static and small segments**  
-The static is calculated per segment, by comparing the mean steplength of the big window to the one from the small window. This method was chosen because some transport modes have variances in speed (stops in public transport, or traffic jams, light stops, ...). Therefore, a comparison with the overall segment was not ideal.  
-Static points with a steplength of less than 5m were also considered as statics.  
-Finally, segments with a duration of less than 30 seconds were removed.  
-The information about static was still kept in the segments by calculating a percentage of static, as this could be useful to determine the mean of transport.  
+**Determine static points, and remove static and small segments**\
+The static is calculated per segment, by comparing the mean steplength of the big window to the one from the small window. This method was chosen because some transport modes have variances in speed (stops in public transport, or traffic jams, light stops, ...). Therefore, a comparison with the overall segment was not ideal.\
+Static points with a steplength of less than 5m were also considered as statics.\
+Finally, segments with a duration of less than 30 seconds were removed.\
+The information about static was still kept in the segments by calculating a percentage of static, as this could be useful to determine the mean of transport.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 #determine static points: choose an average distance to use as the threshold
@@ -1015,8 +1012,8 @@ mvmt_data_filtered <- mvmt_data_add_static %>%
   filter(duration_secs > 30)
 ```
 
-**Final segmentation per duration**  
-In order to have more segments of each transport modes for the machine learning, the long segments were segmentized based on the duration. The maximum duration considered was 100 seconds. However, to not create very small parts, when the last resegmentized part was smaller than 50 seconds, this was added to the penultimate part.  
+**Final segmentation per duration**\
+In order to have more segments of each transport modes for the machine learning, the long segments were segmentized based on the duration. The maximum duration considered was 100 seconds. However, to not create very small parts, when the last resegmentized part was smaller than 50 seconds, this was added to the penultimate part.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Segmentize per duration
@@ -1041,8 +1038,7 @@ mvmt_seg_final <- mvmt_data_split %>%
 ))
 ```
 
-
-Here is the summary of the resulting number of segments, ordered from the most to last:  
+Here is the summary of the resulting number of segments, ordered from the most to last:
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Count no of segs per means of transports:
@@ -1051,7 +1047,6 @@ mvmt_seg_count <- mvmt_seg_final  %>% st_drop_geometry() %>% group_by(segment_ID
 knitr::kable(mvmt_seg_count,
 caption = "Number of segments per mode of transport")
 ```
-
 
 **Segments visualisation - example**
 
@@ -1122,9 +1117,10 @@ visu_data |>
 ```
 
 ### 2.1.3 Trajectories derivatives
+
 Compute trajectories derivatives for each segment
 
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
+```{r derivative_summary, echo = TRUE, warning = FALSE, message = FALSE}
 # SUMMARIZE
 mvmt_seg_summary <- mvmt_seg_final %>%
   group_by(segment_ID_final, static_percent, duration_secs, tmode_manual) %>%
@@ -1160,23 +1156,19 @@ mvmt_seg_summary <- mvmt_seg_final %>%
     lst_geometry = list(geometry))
 ```
 
+### 2.1.4 Trajectories annotation
 
+Each point will be annotated with the information TRUE/FALSE of its proximity to the following environment elements:\
+- Railways (train)\
+- Trams (rails)\
+- Bus stops\
+- Highways ("Autobahn" and "Autostrasse")\
+- Cable-cars, ski-lifts and t-bars\
+- Lakes\
+- Mountainous area (altitude)
 
-### 2.1.4 Trajectories annotation  
-
-Each point will be annotated with the information TRUE/FALSE of its proximity to the following environment elements:  
-- Railways (train)  
-- Trams (rails)  
-- Bus stops  
-- Highways ("Autobahn" and "Autostrasse")  
-- Cable-cars, ski-lifts and t-bars  
-- Lakes  
-- Mountainous area (altitude)  
-
-The railways for the trains and trams come from map.geoadmin.ch.
-The lakes, bus stops, highways and cable-cars & co comes from SwissTLM3D (swisstopo). Due to the number of water elements, only the biggest lakes have been considered. For the highways, it was decided to only take this category of road because this was the most helpful to separate with the other transport modes. Classical roads, in addition of being all other the territory, allow other transport modes such as bikes or walking. Bus networks lines were not available from swisstopo for downloading for whole Switzerland coverage, therefore the stops points were used.  
-The distance considered for proximity has been chosen individually for each transport mode, based on inspection of all the points labelized in the transport mode.
-Finally, the altitude simply used the heights of the points and applies a threshold. The limit of 1200m has been chosen, as it has been observed that most ski stations in the country are above this limit.  
+The railways for the trains and trams come from map.geoadmin.ch. The lakes, bus stops, highways and cable-cars & co comes from SwissTLM3D (swisstopo). Due to the number of water elements, only the biggest lakes have been considered. For the highways, it was decided to only take this category of road because this was the most helpful to separate with the other transport modes. Classical roads, in addition of being all other the territory, allow other transport modes such as bikes or walking. Bus networks lines were not available from swisstopo for downloading for whole Switzerland coverage, therefore the stops points were used.\
+The distance considered for proximity has been chosen individually for each transport mode, based on inspection of all the points labelized in the transport mode. Finally, the altitude simply used the heights of the points and applies a threshold. The limit of 1200m has been chosen, as it has been observed that most ski stations in the country are above this limit.
 
 ```{r st_join_annotation, echo = TRUE, warning = FALSE, message = FALSE}
 # Calculate concave hull based on the trajectory points 
@@ -1247,7 +1239,7 @@ mvmt_seg_final <- mvmt_seg_final %>% mutate(
 )
 ```
 
-Once the points have been annotated, a proximity for the whole segments was defined. A threshold based on percentage of proximity was defined, again individually for each mode to optimize the correct classification.  
+Once the points have been annotated, a proximity for the whole segments was defined. A threshold based on percentage of proximity was defined, again individually for each mode to optimize the correct classification.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # SUMMARIZE ANNOTATIONS
@@ -1265,8 +1257,7 @@ mvmt_seg_annotations_summarized <- mvmt_seg_final %>%
 
 ```
 
-
-**Visualisation of the environment datasets:**  
+**Visualisation of the environment datasets:**
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Rails
@@ -1318,8 +1309,8 @@ ggplot() +
   theme_bw()
 ```
 
-**Visualisation - university day**  
-On the map below in Zurich, can be observed trams, bus and walk travel modes.   
+**Visualisation - university day**\
+On the map below in Zurich, can be observed trams, bus and walk travel modes.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Visu proximity to environment for specific days
@@ -1374,9 +1365,8 @@ m <- leaflet() %>%
 m
 ```
 
-
-**Visualisation - ski day**  
-On this map below in Grimentz, Wallis, can be seen the travel modes ski, cable-car, ski-lift and t-bar.  
+**Visualisation - ski day**\
+On this map below in Grimentz, Wallis, can be seen the travel modes ski, cable-car, ski-lift and t-bar.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Visu proximity to environment for specific days
@@ -1417,14 +1407,14 @@ m <- leaflet() %>%
 m
 ```
 
-
 ## 2.2 Summarized characteristics of transport modes
-- Compute mean variables per segment (ex.2 task 5 (rolling windows))
--> summarize the variables by mean of transports
 
-- general overview for each mean of transports
+-   Compute mean variables per segment (ex.2 task 5 (rolling windows)) -\> summarize the variables by mean of transports
 
-Summary all segments from the mean of transport: 
+-   general overview for each mean of transports
+
+Summary all segments from the mean of transport:
+
 ```{r}
 #count of segments:
 tmode_count <- mvmt_data %>% group_by(tmode_manual) %>% count() %>% arrange(desc(n))
@@ -1457,14 +1447,21 @@ m
 
 ```
 
+## 2.3 Machine Learning  
 
+Two different supervised algorithms will be tested:  
+- K-Nearest Neighbors  
+- Random forest  
 
+We suspect random forest will perform better, as this algorithm is more suitable to categorical data.  
 
+Common issues in machine learning: imbalance training sets (not much boat against walk segments)
 
-## 2.3 Machine Learning
-...
-### 2.3.1 Preparation:  
-```{r}
+### 2.3.1 Preparation
+
+The segments annotated with trajectory derivatives and environment will be splitted into training and testing parts. We will validate the model by doing a K-fold cross validation. 
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Drop geometry
 
 # Merge all variables
@@ -1510,7 +1507,8 @@ mvmt_all$isClosetoCables <- as.integer(as.logical(mvmt_all$isClosetoCables))
 mvmt_all$isHighAltitude <- as.integer(as.logical(mvmt_all$isHighAltitude))
 
 # For machine learning, select factor columns only
-mvmt_all <- mvmt_all %>% dplyr::select(c("static_percent", "space_duration",
+# Keep segmentID to mfor visualisation later, drop after the split in train/test data
+mvmt_all <- mvmt_all %>% dplyr::select(c("segment_ID_final", "static_percent", "space_duration",
                                          "stepMean_midw_mean", "steplength_mean",
                                          "steplength_sd", 
                                          "speed_h_mean", "speed_h_sd",
@@ -1527,8 +1525,11 @@ mvmt_all <- mvmt_all %>% dplyr::select(c("static_percent", "space_duration",
 
 # Split into training and testing dataset
 split <- sample.split(mvmt_all, SplitRatio = 0.3)
-mvmt_all_test <- subset(mvmt_all, split==TRUE)
-mvmt_all_train <- subset(mvmt_all, split==FALSE)
+mvmt_all_test_g <- subset(mvmt_all, split==TRUE)
+mvmt_all_train_g <- subset(mvmt_all, split==FALSE)
+
+mvmt_all_test <- mvmt_all_test_g %>% dplyr::select(-c("segment_ID_final"))
+mvmt_all_train <- mvmt_all_train_g %>% dplyr::select(-c("segment_ID_final"))
 
 # For validation
 # for 10-fold cross validation 
@@ -1544,8 +1545,32 @@ mvmt_all_train_chunk$chunk <- chunk
 
 ```
 
-### 2.3.2 KNN algorithms
-```{r}
+Below, is the distribution of the segments within the train and validation sets. Some transport modes do not have a lot of segments (kick-scooter, run, t_bar). The algorithms might have some difficulties with it (imbalance training sets).  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# n. segment per tmode in the test set
+allset = mvmt_all %>% group_by(label) %>% count()
+test_set_count <- mvmt_all_test %>% group_by(label) %>% count()
+train_set_count <- mvmt_all_train %>% group_by(label) %>% count()
+
+n_seg_train_test_set <- data.frame(
+  labels = allset$label,
+  allset = allset$n,
+  train_set = train_set_count$n,
+  test_set = test_set_count$n
+)
+```
+
+
+### 2.3.2 KNN algorithms  
+
+Knn is non linear supervised classifier.  
+from cheng course:  
+Algorithm: Given an unlabeled data record, find the K nearest neighbors in the training data, and assign the major class label (majority voting) as the label of the unlabeled data record.
+
+The main parameter to set for Knn is "k" the number of neighbours considered. Three numbers will be tested: 5, 11, 50.
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build models with 3 parameter sets
 for(m in 1:3){
   knn_train_cva <- numeric(0)
@@ -1573,8 +1598,8 @@ for(m in 1:3){
     knn_train_cva <- rbind(knn_train_cva, Accuracy(knn_train_pred, mvmt_all_train$label))
     knn_test_cva <- rbind(knn_test_cva, Accuracy(knn_test_pred, mvmt_all_test$label))
   }
-  print(knn_train_cva)
-  print(knn_test_cva)
+  #print(knn_train_cva)
+  #print(knn_test_cva)
 
   if (m == 1){
     knn_train_pred1 <- knn_train_pred
@@ -1601,14 +1626,47 @@ for(m in 1:3){
     knn_test_cva_mean3<-mean(knn_test_cva)
     }
 }
-plot(mvmt_all$label)
-ConfusionMatrix(knn_test_pred, mvmt_all_test$label)
+#plot(mvmt_all$label)
 
+# Create dataframe comparison of the tested models
+knn_tests <- c(1, 2, 3)
+knn_train_cva_mean <- c(round(knn_train_cva_mean1, 2), round(knn_train_cva_mean2,2), round(knn_train_cva_mean3,2))
+knn_test_cva_mean <- c(round(knn_test_cva_mean1,2), round(knn_test_cva_mean2,2), round(knn_test_cva_mean3,2))
+res_model_knn <- data.frame(model_no = knn_tests, mean_train = knn_train_cva_mean, mean_test = knn_test_cva_mean)
+knitr::kable(res_model_knn, caption = "Knn - models Accuracy on train and test data")
 ```
 
-### 2.3.3 Random Forest algorithm
+Based on the accuracy of each model for train/test sets, the first model with 3 nearest neighbours seems to perform best both on train and test sets. This model will then be kept for further analysis.
 
-```{r}
+**(IN THE RESULT SECTION?)**  
+**Confusion matrix - knn**
+The confusion matrix below indicates the correct classification of the segments in the tmode category. The overall accuracy is of ~0.7. The kappa coefficient is of ~0.6 and significant (p value < 0.05). This indicates a rather correct fiability of the model.  
+
+On the confusion matrix, we can see several things:  
+- This seems to be confusion between the train and car segments.  
+- Walk is almost always correctly classified.
+- Bike, boat, cable_car, kick_scooter, t_bar have some issues (not well represented in test set).
+
+The classes which were the best predicted correctly (sensivity):  
+- > 0.7 : tram, car, plane, ski_lift, walk  
+- 0.5 - 0.6: bus, t_bar, train, run  
+- <0.3: bike, ski: a bit better  
+- kick-scooter, cable_car, boat  
+
+The least performant tmode (kick-scooter, cable_car, boat, t_bar) are the one with the least representation in the test  set (prevalence), and the best have the most (train, tram, walk, car).
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Confusion matrix
+caret::confusionMatrix(knn_test_pred1, mvmt_all_test$label)
+```
+
+
+### 2.3.3 Random Forest algorithm
+Random Forest is a multiple decision tree algorithm.  
+
+The main parameters is the number of trees. Three different values will be tested: 20, 40 and 80.  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build 3 models with different parameter sets
 for(m in 1:3){ # Loop through the different models
   if (m == 1){
@@ -1628,13 +1686,14 @@ for(m in 1:3){ # Loop through the different models
     rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
     rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
     rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
-    importance(rf)
-    varImpPlot(rf)
+    #importance(rf)
+    #varImpPlot(rf)
   }
-  print(rf_train_cva)
-  print(rf_test_cva)
+  #print(rf_train_cva)
+  #print(rf_test_cva)
   
   if (m == 1){
+    rf1 <- rf
     rf_train_pred1 <- rf_train_pred
     rf_test_pred1 <-  rf_test_pred
     rf_train_cva1 <- rf_train_cva
@@ -1643,6 +1702,7 @@ for(m in 1:3){ # Loop through the different models
     rf_test_cva_mean1<-mean(rf_test_cva)
     }
   if (m == 2){
+    rf2 <- rf
     rf_train_pred2 <- rf_train_pred
     rf_test_pred2 <-  rf_test_pred
     rf_train_cva2 <- rf_train_cva
@@ -1651,42 +1711,125 @@ for(m in 1:3){ # Loop through the different models
     rf_test_cva_mean2<-mean(rf_test_cva)
     }
   if (m == 3){
+    rf3 <- rf
     rf_train_pred3 <- rf_train_pred
     rf_test_pred3 <-  rf_test_pred
     rf_train_cva3 <- rf_train_cva
     rf_test_cva3 <- rf_test_cva 
     rf_train_cva_mean3<-mean(rf_train_cva)
     rf_test_cva_mean3<-mean(rf_test_cva)
-    }}
-ConfusionMatrix(rf_test_pred, mvmt_all_test$label)
+  }}
 
+# Create dataframe comparison of the tested models
+rf_tests <- c(1, 2, 3)
+rf_train_cva_mean <- c(round(rf_train_cva_mean1, 3), round(rf_train_cva_mean2,3), round(rf_train_cva_mean3,3))
+rf_test_cva_mean <- c(round(rf_test_cva_mean1,3), round(rf_test_cva_mean2,3), round(rf_test_cva_mean3,3))
+res_model_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_cva_mean, mean_test = rf_test_cva_mean)
+knitr::kable(res_model_rf, caption = "RF - models Accuracy on train and test data")
+```
+
+The accuracy of each model for train/test sets tells us that the performances are very similar for the 3 different number of trees. Because the first one has less tree (less overfitting), this model will then be kept for further analysis.
+
+**(IN THE RESULT SECTION?)**  
+**Confusion matrix - RF**  
+
+(Comment Random forest results.)  
+kappa: 0.9 with high significant (p_value < 0.05)  
+Accuracy: 0.91  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+caret::confusionMatrix(rf_test_pred1, mvmt_all_test$label)
+```
+
+**Importances of features - RF**  
+(comment importances of features)  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+importance(rf1)
+varImpPlot(rf1)
 ```
 
 
+**Visualisation - map** (<- should do it in the knn and rf sections)
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Add column prediction for knn
+mvmt_all_test_g$predicted_knn <- knn_test_pred
+mvmt_all_test_g$predicted_rf <- rf_test_pred
+
+mvmt_all_test_g <- mvmt_all_test_g %>%
+  mutate(
+    correct_knn = predicted_knn == label,
+    correct_rf = predicted_rf == label
+  )
+
+# Reput geometry in the test dataset
+#"lst_geometry"
+mvmt_all_test_g <- mvmt_all_test_g %>% 
+  merge(
+    mvmt_seg_summary %>% 
+      dplyr::select(c("segment_ID_final", "geometry")), by = "segment_ID_final"
+  ) %>% 
+  st_as_sf() %>% st_cast("POINT")
+
+coords <- mvmt_all_test_g |> st_coordinates()
+mvmt_all_test_g <- mvmt_all_test_g |> 
+  mutate(E =  coords[,1], N = coords[,2])
+
+
+ggplot() +
+  geom_sf(data = ch_boundaries) +
+  labs(title = "Knn - Predicted trajectory points") +
+  geom_path() +
+  geom_point(data = mvmt_all_test_g, aes(E, N, color = correct_knn), alpha = 0.1) +
+  coord_sf(datum=2056) +
+  theme_bw()
+
+ggplot() +
+  geom_sf(data = ch_boundaries) +
+  labs(title = "RF - Predicted trajectory points") +
+  #geom_path() +
+  geom_point(data = mvmt_all_test_g, aes(E, N, color = correct_rf)) +
+  coord_sf(datum=2056) +
+  theme_bw()
+```
 
 # 3. Results
+
+## 3.1 Summarized characteristics of transport modes
+...
+
+## 3.2 Machine learning: K-Nearest Neighbours
+...
+
+## 3.3 Machine learning: Random forest
 ...
 
 # 4. Discussion
+
 ## 4.1 RQ
-- Answer the 4 RQ
+
+-   Answer the 4 RQ
 
 ## 4.2 Problems encoutered / challenges
-- posmo map matching
+
+-   posmo map matching\
+-   long calculation time\
+-   labelizing takes a long time\
+-   overfitting random forest
 
 ## 4.3 Limitations
-...
+
+-   data attributes available ( for ex. no height for planes) ...
 
 # 5. Conclusion
+
 ...
 
 # 6. References
 
-- DHM25 Swisstopo:  https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html 
+-   DHM25 Swisstopo: <https://www.swisstopo.admin.ch/fr/geodata/height/dhm25.html>
 
-- Swissboundaries: 
-https://www.swisstopo.admin.ch/en/geodata/landscape/boundaries3d.html 
+-   Swissboundaries: <https://www.swisstopo.admin.ch/en/geodata/landscape/boundaries3d.html>
 
-- SwissTLM3D:
-...
-source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
+-   SwissTLM3D: ... source: map.geoadmin.ch : Arrêts des transports publics (Office fédéral des transports OFT)
