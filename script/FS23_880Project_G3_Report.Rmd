@@ -77,9 +77,9 @@ check_pkg("rmdwc")
 
 # DATA FOLDER
 #On Martine laptop:
-#data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
+data_folder <- "D:/Documents/Master/UZH/cours/GEO880_Computational Movement Analysis/Project/FS23_880Project_G3/data"
 #On Yelu laptop:
-data_folder <- "D:/GEO880/Project"
+#data_folder <- "D:/GEO880/Project"
 ```
 
 # (Criteria):
@@ -2028,7 +2028,7 @@ mvmt_all_train_chunk$chunk <- chunk
 ```
 
 
-The classification will also be tried without the proximity attributes to see if how good the classification could still be or not be, with only trajectory derivative.  
+The classification will also be tried without the environment annotations features to see if how good the classification could still be or not be, with only trajectory derivative.  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Create test/train sets without environment annotation
@@ -2070,13 +2070,11 @@ knitr::kable(n_seg_train_test_set, caption = "Segments in test and training sets
 
 ### 2.3.2 K-Nearest Neighbours
 
-Knn is non linear supervised classifier.  
-from cheng course:  
-Algorithm: Given an unlabeled data record, find the K nearest neighbors in the training data, and assign the major class label (majority voting) as the label of the unlabeled data record.
+Knn is non linear supervised classifier. It works by assigning the major class label from the closest labelized neighbours to the unlabelized records.  
 
 #### Knn with all feature attributes
 
-The main parameter to set for Knn is "k" the number of neighbours considered. Three numbers will be tested: 5, 11, 50.
+The main parameter to set for Knn is "k" the number of neighbours considered. Different sets of number will be tested.
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Build models with 3 parameter sets
@@ -2173,7 +2171,7 @@ cm_knn <- caret::confusionMatrix(knn_test_pred1, mvmt_all_test$label)
 print(cm_knn)
 ```
 
-#### Knn without proximity attributes
+#### Knn - no environment annotations
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # Models without proximities
@@ -2361,7 +2359,7 @@ knitr::kable(res_model_rf, caption = "RF - models Accuracy on train and test dat
 
 The accuracy of each model for train/test sets tells us that the performances are very similar for the 3 different number of trees. Because the first one has less tree (less overfitting), this model will then be kept for further analysis.
 
-**(IN THE RESULT SECTION?)**  
+
 **Confusion matrix - RF**  
 
 (Comment Random forest results.)  
@@ -2374,13 +2372,89 @@ cm_rf <- caret::confusionMatrix(rf_test_pred1, mvmt_all_test$label)
 print(cm_rf)
 ```
 
-**Importances of features - RF**  
-(comment importances of features)  
+
+#### RF - no environment annotations
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+# Models without proximities
+
+# Build 3 models with different parameter sets
+for(m in 1:3){ # Loop through the different models
+  if (m == 1){
+      ntree_value= 20}
+  if (m == 2){
+      ntree_value= 40}
+  if (m == 3){
+      ntree_value= 80}
+  rf_train_cva <- numeric(0)
+  rf_test_cva <- numeric(0)
+  for(i in 1:k_fold){
+    set.seed(21)
+    rf <- randomForest(x = dplyr::select(mvmt_all_train_nprox_chunk[chunk != i, ], -label, -chunk), 
+                     y = mvmt_all_train_nprox_chunk[chunk != i, ]$label, 
+                     importance=TRUE, proximity=TRUE, ntree = ntree_value) 
+    rf_train_pred <- predict(rf, dplyr::select(mvmt_all_train, -label), type="class")
+    rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
+    rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
+    rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
+    #importance(rf)
+    #varImpPlot(rf)
+  }
+  #print(rf_train_cva)
+  #print(rf_test_cva)
+  
+  if (m == 1){
+    rf_nprox1 <- rf
+    rf_train_nprox_pred1 <- rf_train_pred
+    rf_test_nprox_pred1 <-  rf_test_pred
+    rf_train_nprox_cva1 <- rf_train_cva
+    rf_test_nprox_cva1 <- rf_test_cva 
+    rf_train_nprox_cva_mean1<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean1<-mean(rf_test_cva)
+    }
+  if (m == 2){
+    rf_nprox2 <- rf
+    rf_train_nprox_pred2 <- rf_train_pred
+    rf_test_nprox_pred2 <-  rf_test_pred
+    rf_train_nprox_cva2 <- rf_train_cva
+    rf_test_nprox_cva2 <- rf_test_cva 
+    rf_train_nprox_cva_mean2<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean2<-mean(rf_test_cva)
+    }
+  if (m == 3){
+    rf_nprox3 <- rf
+    rf_train_nprox_pred3 <- rf_train_pred
+    rf_test_nprox_pred3 <-  rf_test_pred
+    rf_train_nprox_cva3 <- rf_train_cva
+    rf_test_nprox_cva3 <- rf_test_cva 
+    rf_train_nprox_cva_mean3<-mean(rf_train_cva)
+    rf_test_nprox_cva_mean3<-mean(rf_test_cva)
+  }}
+
+# Create dataframe comparison of the tested models
+rf_tests <- c(1, 2, 3)
+rf_train_nprox_cva_mean <- c(round(rf_train_nprox_cva_mean1, 3), round(rf_train_nprox_cva_mean2,3), round(rf_train_nprox_cva_mean3,3))
+rf_test_nprox_cva_mean <- c(round(rf_test_nprox_cva_mean1,3), round(rf_test_nprox_cva_mean2,3), round(rf_test_nprox_cva_mean3,3))
+
+res_model_nprox_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_nprox_cva_mean, mean_test = rf_test_nprox_cva_mean)
+knitr::kable(res_model_nprox_rf, caption = "RF - models Accuracy on train and test data")
+```
+
+**Importances of features - RF no proximities**  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 print("Importance of features:")
-importance(rf1)
-varImpPlot(rf1)
+importance(rf_nprox1)
+varImpPlot(rf_nprox1)
+```
+
+**Confusion matrix - RF**  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+print("Confusion matrix - RF, no proximity attributes")
+cm_rf_nprox <- caret::confusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label)
+print(cm_rf_nprox)
+
 ```
 
 ### 2.3.4 Decision Tree algorithm
@@ -2492,92 +2566,6 @@ dmp3 <- mean(rbind(dt_train_cva3,
                              mvmt_all_train$label)))
 print("Mean Precision of the 3 train models")
 print(c(dmp1, dmp2, dmp3))
-
-```
-
-**Visualisation - map** (<- should do it in the knn and rf sections)
-
-#### RF without proximity attributes
-
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
-# Models without proximities
-
-# Build 3 models with different parameter sets
-for(m in 1:3){ # Loop through the different models
-  if (m == 1){
-      ntree_value= 20}
-  if (m == 2){
-      ntree_value= 40}
-  if (m == 3){
-      ntree_value= 80}
-  rf_train_cva <- numeric(0)
-  rf_test_cva <- numeric(0)
-  for(i in 1:k_fold){
-    set.seed(21)
-    rf <- randomForest(x = dplyr::select(mvmt_all_train_nprox_chunk[chunk != i, ], -label, -chunk), 
-                     y = mvmt_all_train_nprox_chunk[chunk != i, ]$label, 
-                     importance=TRUE, proximity=TRUE, ntree = ntree_value) 
-    rf_train_pred <- predict(rf, dplyr::select(mvmt_all_train, -label), type="class")
-    rf_test_pred <- predict(rf, dplyr::select(mvmt_all_test, -label), type="class")
-    rf_train_cva <- rbind(rf_train_cva, Accuracy(rf_train_pred, mvmt_all_train$label))
-    rf_test_cva <- rbind(rf_test_cva, Accuracy(rf_test_pred, mvmt_all_test$label))
-    #importance(rf)
-    #varImpPlot(rf)
-  }
-  #print(rf_train_cva)
-  #print(rf_test_cva)
-  
-  if (m == 1){
-    rf_nprox1 <- rf
-    rf_train_nprox_pred1 <- rf_train_pred
-    rf_test_nprox_pred1 <-  rf_test_pred
-    rf_train_nprox_cva1 <- rf_train_cva
-    rf_test_nprox_cva1 <- rf_test_cva 
-    rf_train_nprox_cva_mean1<-mean(rf_train_cva)
-    rf_test_nprox_cva_mean1<-mean(rf_test_cva)
-    }
-  if (m == 2){
-    rf_nprox2 <- rf
-    rf_train_nprox_pred2 <- rf_train_pred
-    rf_test_nprox_pred2 <-  rf_test_pred
-    rf_train_nprox_cva2 <- rf_train_cva
-    rf_test_nprox_cva2 <- rf_test_cva 
-    rf_train_nprox_cva_mean2<-mean(rf_train_cva)
-    rf_test_nprox_cva_mean2<-mean(rf_test_cva)
-    }
-  if (m == 3){
-    rf_nprox3 <- rf
-    rf_train_nprox_pred3 <- rf_train_pred
-    rf_test_nprox_pred3 <-  rf_test_pred
-    rf_train_nprox_cva3 <- rf_train_cva
-    rf_test_nprox_cva3 <- rf_test_cva 
-    rf_train_nprox_cva_mean3<-mean(rf_train_cva)
-    rf_test_nprox_cva_mean3<-mean(rf_test_cva)
-  }}
-
-# Create dataframe comparison of the tested models
-rf_tests <- c(1, 2, 3)
-rf_train_nprox_cva_mean <- c(round(rf_train_nprox_cva_mean1, 3), round(rf_train_nprox_cva_mean2,3), round(rf_train_nprox_cva_mean3,3))
-rf_test_nprox_cva_mean <- c(round(rf_test_nprox_cva_mean1,3), round(rf_test_nprox_cva_mean2,3), round(rf_test_nprox_cva_mean3,3))
-
-res_model_nprox_rf <- data.frame(model_no = rf_tests, mean_train = rf_train_nprox_cva_mean, mean_test = rf_test_nprox_cva_mean)
-knitr::kable(res_model_nprox_rf, caption = "RF - models Accuracy on train and test data")
-```
-
-**Importances of features - RF no proximities**  
-
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
-print("Importance of features:")
-importance(rf_nprox1)
-varImpPlot(rf_nprox1)
-```
-
-**Confusion matrix - RF**  
-
-```{r, echo = TRUE, warning = FALSE, message = FALSE}
-print("Confusion matrix - RF, no proximity attributes")
-cm_rf_nprox <- caret::confusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label)
-print(cm_rf_nprox)
 
 ```
 
@@ -2744,10 +2732,9 @@ for(i in 3:q){
 ```
 
 ## 3.2 Machine learning algorithms
+### 3.2.1 Correlation matrix
 
-**Correlation matrix**  
-
-It is interesting to analyse the relations between the features. There are some obvious correlations (speed, acceleration, or high altitude correlate with closeness to cables (cable car & ski-lift & t-bar)). What is more interesting to notice is the correlation between the proximity to trams and bus (0.4).
+It is interesting to analyse the relations between the features. There are some obvious correlations: speed, acceleration and their derivatives, or high altitude correlate with closeness to cables (cable car & ski-lift & t-bar). What is also interesting to notice is the correlation between the proximity to trams and bus (0.4).
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
 # correlation matrix
@@ -2757,36 +2744,64 @@ ggcorrplot(corr, hc.order = FALSE, type = "lower",
    lab = TRUE)
 ```
 
+### 3.2.2 Confusion matrix
 
 **Summary of the accuracy and kappas of the 4 considered models**  
 
 ```{r, echo = TRUE, warning = FALSE, message = FALSE}
-models <- c("Knn", "Knn no proximity", "RF", "RF no proximity")
+models <- c("Knn", "Knn no environment", "RF", "RF no environment")
 data.frame(models = models, 
            accuracy = c(round(cm_knn$overall[1],3), round(cm_knn_nprox$overall[1],3), round(cm_rf$overall[1],3), round(cm_rf_nprox$overall[1],3)),
            kappa = c(round(cm_knn$overall[2],3), round(cm_knn_nprox$overall[2],3), round(cm_rf$overall[2],3), round(cm_rf_nprox$overall[2],3))
            )
-
-
 ```
 
-**Summary for RF features importances**  
+**Summary of the Precision, Recall and F1**
 
 ```{r}
-importance(rf1)
+# Extract precision, recall and F1 from confusion matrix
+cm2metrics <- function(cm) {
+  n = sum(cm) # number of instances
+  nc = nrow(cm) # number of classes
+  diag = diag(cm) # number of correctly classified instances per class 
+  rowsums = apply(cm, 1, sum) # number of instances per class
+  colsums = apply(cm, 2, sum) # number of predictions per class
+  p = rowsums / n # distribution of instances over the actual classes
+  q = colsums / n # distribution of instances over the predicted classes
+  precision = diag / colsums 
+  recall = diag / rowsums 
+  f1 = 2 * precision * recall / (precision + recall) 
+  
+  df <- data.frame(precision, recall, f1) %>% as.data.frame() 
+  df <- df %>% replace(is.na(df), 0)
+  return(df)
+}
 
-check_pkg("rfviz")
-check_pkg("randomForestExplainer")
+# Knn
+cm_knn_simple <- ConfusionMatrix(knn_test_pred1, mvmt_all_test$label)
+df_knn <- cm2metrics(cm_knn_simple)
 
-rfviz::rf_viz(rf_nprox1)
-min_depth_frame <- min_depth_distribution(rf1)
+# Knn no proximities
+cm_knn_np_simple <- ConfusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label)
+df_knn_np <- cm2metrics(cm_knn_np_simple)
 
-plot_min_depth_distribution(min_depth_frame)
 
+# RF
+cm_rf_simple <- ConfusionMatrix(rf_test_pred1, mvmt_all_test$label)
+df_rf <- cm2metrics(cm_rf_simple)
+
+# RF no proximities
+cm_rf_np_simple <- ConfusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label)
+df_rf_np <- cm2metrics(cm_rf_np_simple)
+
+# Plot result
+models <- c("Knn", "Knn no environment", "RF", "RF no environment")
+data.frame(models = models, 
+           precision = c(round(mean(df_knn$precision),3), round(mean(df_knn_np$precision),3), round(mean(df_rf_np$precision),3),  round(mean(df_rf_np$precision),3)),
+           recall = c(round(mean(df_knn$recall),3), round(mean(df_knn_np$recall),3), round(mean(df_rf_np$recall),3),  round(mean(df_rf_np$recall),3)),
+           F1 = c(round(mean(df_knn$f1),3), round(mean(df_knn_np$f1),3), round(mean(df_rf_np$f1),3),  round(mean(df_rf_np$f1),3))
+           )
 ```
-
-
-### 3.2.1 Comparison of the confusion matrix**
 
 **Confusion matrix - Knn**  
 
@@ -2807,22 +2822,6 @@ print(ConfusionMatrix(knn_test_nprox_pred1, mvmt_all_test$label))
 ```{r}
 # rf
 print(ConfusionMatrix(rf_test_pred1, mvmt_all_test$label))
-
-cm_rf_simple <- ConfusionMatrix(rf_test_pred1, mvmt_all_test$label)
-
-n = sum(cm_rf_simple) # number of instances
-nc = nrow(cm_rf_simple) # number of classes
-diag = diag(cm_rf_simple) # number of correctly classified instances per class 
-rowsums = apply(cm_rf_simple, 1, sum) # number of instances per class
-colsums = apply(cm_rf_simple, 2, sum) # number of predictions per class
-p = rowsums / n # distribution of instances over the actual classes
-q = colsums / n # distribution of instances over the predicted classes
-precision = diag / colsums 
-recall = diag / rowsums 
-f1 = 2 * precision * recall / (precision + recall) 
-
-data.frame(precision, recall, f1) %>% as.data.frame() %>% replace( is.na(df), 0) %>% summary()
-
 ```
 
 **Confusion matrix - RF no proximities**  
@@ -2831,6 +2830,27 @@ data.frame(precision, recall, f1) %>% as.data.frame() %>% replace( is.na(df), 0)
 # rf no prox
 print(ConfusionMatrix(rf_test_nprox_pred1, mvmt_all_test$label))
 ```
+
+### 3.2.3 Importances of features in RF
+
+(comment importances of features)  
+
+```{r, echo = TRUE, warning = FALSE, message = FALSE}
+#importance(rf1)
+print("Importances of features - RF")
+varImpPlot(rf1)
+
+print("Importances of features - RF without ")
+varImpPlot(rf1)
+```
+
+<!-- ```{r} -->
+<!-- check_pkg("randomForestExplainer") -->
+<!-- min_depth_frame <- min_depth_distribution(rf1) -->
+<!-- plot_min_depth_distribution(min_depth_frame) -->
+<!-- ``` -->
+
+
 
 ### 3.2.2 Map visualisation of the predictions 
 
